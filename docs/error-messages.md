@@ -1,0 +1,3 @@
+- ERROR: [youtube] iX67T0PKegE: Video unavailable. This video contains content from khara, who has blocked it on copyright grounds
+- ERROR: [youtube] Dl2vf04UCAM: Sign in to confirm you’re not a bot. Use --cookies-from-browser or --cookies for the authentication. See  https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp  for how to manually pass cookies. Also see  https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies  for tips on effectively exporting YouTube cookies
+    - Sitting behind a VPN might trigger this error.
