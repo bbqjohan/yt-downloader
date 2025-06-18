@@ -1,5 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use std::process::Command;
+mod ytdlp;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -7,14 +8,12 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-fn fetch_data(url: &str) -> String {
-    let output = Command::new("yt-dlp")
-        .arg(format!("-F {}", url))
-        .output();
+fn fetch_data(url: &str) -> Result<ytdlp::YtdlpResponse, String> {
+    // let output = Command::new("yt-dlp").arg(format!("-F {}", url)).output();
 
-    match output {
-        Ok(output) => format!("Data fetched successfully: {}", String::from_utf8_lossy(&output.stdout)),
-        Err(error) => format!("Error fetching data: {}", error),
+    match ytdlp::read() {
+        Some(resp) => Ok(resp),
+        None => Err("Error fetching data".to_string()),
     }
 }
 
