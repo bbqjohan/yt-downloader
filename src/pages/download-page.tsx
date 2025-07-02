@@ -52,9 +52,14 @@ export function DownloadPage() {
     new Set([])
   );
   const [isFetchingFormats, setIsFetchingFormats] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const handleFetch = () => {
     setIsFetchingFormats(true);
+  };
+
+  const handleDownload = () => {
+    setIsDownloading(true);
   };
 
   useEffect(() => {
@@ -64,17 +69,21 @@ export function DownloadPage() {
       })
         .then((response) => {
           setAudioFormats(
-            response.audio.map((format) => ({
-              ...format,
-              id: format.format_id,
-            }))
+            response.audio
+              .filter((format) => !format.protocol.startsWith("m3u8"))
+              .map((format) => ({
+                ...format,
+                id: format.format_id,
+              }))
           );
 
           setVideoFormats(
-            response.video.map((format) => ({
-              ...format,
-              id: format.format_id,
-            }))
+            response.video
+              .filter((format) => !format.protocol.startsWith("m3u8"))
+              .map((format) => ({
+                ...format,
+                id: format.format_id,
+              }))
           );
 
           setVideoTitle(response.title);
@@ -90,13 +99,36 @@ export function DownloadPage() {
         });
     }
 
+    if (isDownloading) {
+      console.log(
+        "Invoking Downloading!",
+        Array.from(selectedAudioFormat as Set<string>)[0],
+        Array.from(selectedVideoFormat as Set<string>)[0]
+      );
+      invoke<YtdlpResponse>("download", {
+        audioFormat: Array.from(selectedAudioFormat as Set<string>)[0],
+        videoFormat: Array.from(selectedVideoFormat as Set<string>)[0],
+      })
+        .then((response) => {
+          console.log("Download success");
+          console.log(response);
+        })
+        .catch((error) => {
+          console.log("Download error");
+          console.error(error);
+        })
+        .finally(() => {
+          setIsDownloading(false);
+        });
+    }
+
     return () => {};
-  }, [isFetchingFormats]);
+  }, [isFetchingFormats, isDownloading]);
 
   function makeItemLabel(item: YtdlpFormatItem): string {
-    return `${item.format_id} | ${item.ext} ${
-      item.filesize_conversion ? `| ${item.filesize_conversion}` : ""
-    }`;
+    return `${item.format_id}\t|\t${item.ext}${
+      item.filesize_conversion ? `\t|\t${item.filesize_conversion}` : ""
+    }${item.resolution !== "audio only" ? `\t|\t${item.resolution}` : ""}`;
   }
 
   return (
@@ -131,7 +163,12 @@ export function DownloadPage() {
             return <SelectItem>{makeItemLabel(item)}</SelectItem>;
           }}
         </Select>
-        <Button color="primary" className="self-start">
+        <Button
+          color="primary"
+          className="self-start"
+          onPress={handleDownload}
+          isDisabled={isDownloading}
+        >
           Download
         </Button>
       </div>

@@ -1,3 +1,8 @@
+use std::{
+    io::Error,
+    process::{Child, Command, Output, Stdio},
+};
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -123,4 +128,23 @@ pub fn read() -> Option<YtdlpResponse> {
     // println!("{:#?}", resp);
 
     Some(resp)
+}
+
+pub fn download(// audio_format: &str,
+    // video_format: &str
+) -> Result<Child, Error> {
+    let cmd = Command::new("yt-dlp")
+        .arg("-F")
+        // .arg(format!("{}+{}", audio_format, video_format))
+        // .arg("-o")
+        // .arg("C:\\Users\\korvb\\Downloads\\%(title)s.%(ext)s")
+        .arg("https://www.youtube.com/watch?v=Dl2vf04UCAM")
+        // .stdout(Stdio::piped())
+        // .stderr(Stdio::piped())
+        .spawn();
+
+    // let status = cmd.wait();
+    // println!("Exited with status {:?}", status);
+
+    cmd
 }
