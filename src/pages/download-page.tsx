@@ -9,7 +9,7 @@ import {
 } from "@heroui/react";
 import { OneColumnLayout } from "../layouts/one-column";
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 
 type MaybeNull<T> = NonNullable<T> | null;
 
@@ -38,6 +38,29 @@ interface YtdlpFormat {
 interface YtdlpFormatItem extends YtdlpFormat {
   id: string;
 }
+
+type DownloadEvent =
+  | {
+      event: "started";
+      data: {
+        url: string;
+        downloadId: number;
+        contentLength: number;
+      };
+    }
+  | {
+      event: "progress";
+      data: {
+        downloadId: number;
+        output: string;
+      };
+    }
+  | {
+      event: "finished";
+      data: {
+        downloadId: number;
+      };
+    };
 
 export function DownloadPage() {
   const [progressValue, setProgressValue] = useState(0); // Example progress value, can be dynamic
@@ -105,9 +128,38 @@ export function DownloadPage() {
         Array.from(selectedAudioFormat as Set<string>)[0],
         Array.from(selectedVideoFormat as Set<string>)[0]
       );
+      const onEvent = new Channel<DownloadEvent>();
+      onEvent.onmessage = (message) => {
+        if (message.event === "progress") {
+          function getPercentage(str: string): string | undefined {
+            const result = /\d+(?:\.\d)*\%/.exec(str);
+            return result ? result[0] : undefined;
+          }
+          function getSize(str: string): string | undefined {
+            const result = /\d+\.\d+\w+\s/.exec(str);
+            return result ? result[0] : undefined;
+          }
+          function getSpeed(str: string): string | undefined {
+            const result = /\d+\.\d+\w+\/s/.exec(str);
+            return result ? result[0].trim() : undefined;
+          }
+
+          const output = message.data.output;
+          const percentage = getPercentage(output);
+          const size = getSize(output);
+          const speed = getSpeed(output);
+
+          console.log(percentage, size, speed);
+
+          if (typeof percentage === "string") {
+            setProgressValue(parseFloat(percentage));
+          }
+        }
+      };
       invoke<YtdlpResponse>("download", {
-        audioFormat: Array.from(selectedAudioFormat as Set<string>)[0],
-        videoFormat: Array.from(selectedVideoFormat as Set<string>)[0],
+        // audioFormat: Array.from(selectedAudioFormat as Set<string>)[0],
+        // videoFormat: Array.from(selectedVideoFormat as Set<string>)[0],
+        onEvent,
       })
         .then((response) => {
           console.log("Download success");

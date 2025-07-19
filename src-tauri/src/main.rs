@@ -10,23 +10,23 @@ use std::io::{BufRead, BufReader, Read, Write};
 mod ytdlp;
 
 fn main() {
-    // yt_dler_lib::run()
+    yt_dler_lib::run()
     // ytdlp();
-    let mut child = ytdlp::download();
+    // let mut child = ytdlp::download();
 
-    match child {
-        Ok(mut child) => {
-            let out = child.wait_with_output().expect("No exit status");
+    // match child {
+    //     Ok(mut child) => {
+    //         let out = child.wait_with_output().expect("No exit status");
 
-            if (!out.status.success()) {
-                println!("Error, {:#?}", String::from_utf8_lossy(&out.stderr));
-                for line in String::from_utf8_lossy(&out.stdout).lines() {
-                    eprintln!("ERR: {:#?}", line);
-                }
-            }
-        }
-        Err(err) => println!("{:#?}", err),
-    }
+    //         if (!out.status.success()) {
+    //             println!("Error, {:#?}", String::from_utf8_lossy(&out.stderr));
+    //             for line in String::from_utf8_lossy(&out.stdout).lines() {
+    //                 eprintln!("ERR: {:#?}", line);
+    //             }
+    //         }
+    //     }
+    //     Err(err) => println!("{:#?}", err),
+    // }
 }
 
 // fn ytdlp() {
