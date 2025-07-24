@@ -8,132 +8,66 @@ import {
   SelectItem,
 } from "@heroui/react";
 import { OneColumnLayout } from "../layouts/one-column";
-import { useEffect, useMemo, useState } from "react";
-import { Channel, invoke } from "@tauri-apps/api/core";
-import {
-  useFetchVideoInfo,
-  YtdlpFormatItem,
-  YtdlpResponse,
-} from "../hooks/fetch-video-info";
-
-type DownloadEvent =
-  | {
-      event: "started";
-      data: {
-        url: string;
-        downloadId: number;
-        contentLength: number;
-      };
-    }
-  | {
-      event: "progress";
-      data: {
-        downloadId: number;
-        output: string;
-      };
-    }
-  | {
-      event: "finished";
-      data: {
-        downloadId: number;
-      };
-    };
+import { useMemo, useState } from "react";
+import { useFetchVideoInfo, YtdlpFormatItem } from "../hooks/fetch-video-info";
+import { useDownloadVideo } from "../hooks/download-video";
 
 export function DownloadPage() {
-  const [progressValue, setProgressValue] = useState(0); // Example progress value, can be dynamic
-  const [url, setUrl] = useState("");
-  const { audioFormats, videoFormats, videoTitle, setFetching } =
+  const [url, setUrl] = useState("https://www.youtube.com/watch?v=Dl2vf04UCAM");
+  const { audioFormats, videoFormats, videoTitle, setFetching, fetching } =
     useFetchVideoInfo(url);
+  const { download, isDownloading, progress } = useDownloadVideo();
 
-  // const [videoTitle, setVideoTitle] = useState("");
-  // const [audioFormats, setAudioFormats] = useState<YtdlpFormatItem[]>([]);
-  // const [videoFormats, setVideoFormats] = useState<YtdlpFormatItem[]>([]);
   const [selectedAudioFormat, setSelectedAudioFormat] = useState<Selection>(
     new Set([])
   );
   const [selectedVideoFormat, setSelectedVideoFormat] = useState<Selection>(
     new Set([])
   );
-  // const [isFetchingFormats, setIsFetchingFormats] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
 
   const handleFetch = () => {
     setFetching(true);
   };
 
   const handleDownload = () => {
-    setIsDownloading(true);
+    if (
+      selectedAudioFormat instanceof Set &&
+      selectedAudioFormat.size === 1 &&
+      selectedVideoFormat instanceof Set &&
+      selectedVideoFormat.size === 1
+    ) {
+      download({
+        url,
+
+        // Only one selection is allowed per format, so it's safe to assume a string since that's
+        // the only value type that can be set using the GUI.
+        audioFormat: selectedAudioFormat.values().next().value as string,
+        videoFormat: selectedVideoFormat.values().next().value as string,
+      });
+    }
   };
-
-  // useEffect(() => {
-  //   if (isFetchingFormats) {
-  //   }
-
-  //   if (isDownloading) {
-  //     console.log(
-  //       "Invoking Downloading!",
-  //       Array.from(selectedAudioFormat as Set<string>)[0],
-  //       Array.from(selectedVideoFormat as Set<string>)[0]
-  //     );
-  //     const onEvent = new Channel<DownloadEvent>();
-  //     onEvent.onmessage = (message) => {
-  //       if (message.event === "progress") {
-  //         function getPercentage(str: string): string | undefined {
-  //           const result = /\d+(?:\.\d)*\%/.exec(str);
-  //           return result ? result[0] : undefined;
-  //         }
-  //         function getSize(str: string): string | undefined {
-  //           const result = /\d+\.\d+\w+\s/.exec(str);
-  //           return result ? result[0] : undefined;
-  //         }
-  //         function getSpeed(str: string): string | undefined {
-  //           const result = /\d+\.\d+\w+\/s/.exec(str);
-  //           return result ? result[0].trim() : undefined;
-  //         }
-
-  //         const output = message.data.output;
-  //         const percentage = getPercentage(output);
-  //         const size = getSize(output);
-  //         const speed = getSpeed(output);
-
-  //         console.log(percentage, size, speed);
-
-  //         if (typeof percentage === "string") {
-  //           setProgressValue(parseFloat(percentage));
-  //         }
-  //       }
-  //     };
-  //     invoke<YtdlpResponse>("download", {
-  //       // audioFormat: Array.from(selectedAudioFormat as Set<string>)[0],
-  //       // videoFormat: Array.from(selectedVideoFormat as Set<string>)[0],
-  //       onEvent,
-  //     })
-  //       .then((response) => {
-  //         console.log("Download success");
-  //         console.log(response);
-  //       })
-  //       .catch((error) => {
-  //         console.log("Download error");
-  //         console.error(error);
-  //       })
-  //       .finally(() => {
-  //         setIsDownloading(false);
-  //       });
-  //   }
-
-  //   return () => {};
-  // }, [isFetchingFormats, isDownloading]);
 
   return (
     <OneColumnLayout>
       <div className="text-black flex items-center gap-4">
-        <Input label="URL" type="url" value={url} onValueChange={setUrl} />
-        <Button color="primary" onPress={handleFetch}>
+        <Input
+          label="URL"
+          type="url"
+          value={url}
+          onValueChange={setUrl}
+          isDisabled={isDownloading || fetching}
+        />
+        <Button
+          color="primary"
+          onPress={handleFetch}
+          isDisabled={isDownloading || fetching}
+        >
           Fetch
         </Button>
       </div>
       <Divider className="my-6" />
       <DownloadOptions
+        isDisabled={isDownloading || fetching}
         audioFormats={audioFormats}
         videoFormats={videoFormats}
         selectedAudioFormat={selectedAudioFormat}
@@ -146,11 +80,11 @@ export function DownloadPage() {
         color="primary"
         className="self-start"
         onPress={handleDownload}
-        isDisabled={isDownloading}
+        isDisabled={isDownloading || fetching}
       >
         Download
       </Button>
-      <ProgressBar progress={progressValue} state="downloading" />
+      <ProgressBar progress={progress} state="downloading" />
     </OneColumnLayout>
   );
 }
@@ -161,6 +95,7 @@ export function DownloadPage() {
 // ===============================================================
 
 interface DownloadOptionsProps {
+  isDisabled: boolean;
   videoFormats: YtdlpFormatItem[];
   audioFormats: YtdlpFormatItem[];
   selectedAudioFormat: Selection;
@@ -176,6 +111,7 @@ function makeFormatLabel(item: YtdlpFormatItem): string {
 }
 
 const DownloadOptions = ({
+  isDisabled,
   videoFormats,
   audioFormats,
   selectedAudioFormat,
@@ -191,6 +127,7 @@ const DownloadOptions = ({
         selectedKeys={selectedAudioFormat}
         onSelectionChange={setSelectedAudioFormat}
         items={audioFormats}
+        isDisabled={isDisabled}
       >
         {(item) => {
           return <SelectItem>{makeFormatLabel(item)}</SelectItem>;
@@ -202,6 +139,7 @@ const DownloadOptions = ({
         selectedKeys={selectedVideoFormat}
         onSelectionChange={setSelectedVideoFormat}
         items={videoFormats}
+        isDisabled={isDisabled}
       >
         {(item) => {
           return <SelectItem>{makeFormatLabel(item)}</SelectItem>;
@@ -221,6 +159,7 @@ interface ProgressBarProps {
   state: "downloading" | "done" | "error" | "";
   error?: "string";
 }
+
 const ProgressBar = ({ progress, state, error }: ProgressBarProps) => {
   const label = useMemo(() => {
     switch (state) {

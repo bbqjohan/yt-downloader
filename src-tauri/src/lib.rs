@@ -1,7 +1,10 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #![allow(warnings)]
 
-use std::{io::{BufRead, BufReader, Stdout}, process::{Command, Stdio}};
+use std::{
+    io::{BufRead, BufReader, Stdout},
+    process::{Command, Stdio},
+};
 
 use serde::Serialize;
 use tauri::ipc::Channel;
@@ -14,7 +17,7 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-fn fetch_data(url: &str) -> Result<ytdlp::YtdlpResponse, String> {
+async fn fetch_data(url: &str) -> Result<ytdlp::YtdlpResponse, String> {
     // let output = Command::new("yt-dlp").arg(format!("-F {}", url)).output();
 
     match ytdlp::read() {
@@ -24,28 +27,38 @@ fn fetch_data(url: &str) -> Result<ytdlp::YtdlpResponse, String> {
 }
 
 #[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase", rename_all_fields = "camelCase", tag = "event", content = "data")]
+#[serde(
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase",
+    tag = "event",
+    content = "data"
+)]
 enum DownloadEvent {
-  Started {
-    // url: &'a str,
-    download_id: usize,
-    // content_length: usize,
-  },
-  Progress {
-    download_id: usize,
-    output: String,
-  },
-  Finished {
-    download_id: usize,
-  },
+    Started {
+        url: String,
+        audio_format: String,
+        video_format: String,
+        // download_id: usize,
+    },
+    Progress {
+        // download_id: usize,
+        output: String,
+    },
+    Finished {
+        // download_id: usize,
+    },
 }
 
 #[tauri::command]
-async fn download(on_event: Channel<DownloadEvent>) {
+async fn download(
+    url: &str,
+    audio_format: &str,
+    video_format: &str,
+    on_event: Channel<DownloadEvent>,
+) -> Result<(), ()> {
     // let output = Command::new("yt-dlp").arg(format!("-F {}", url)).output();
     let mut cmd = Command::new("yt-dlp")
-        .arg("-f 397")
-        // .arg(format!("{}+{}", audio_format, video_format))
+        .arg(format!("-f {}+{}", audio_format, video_format))
         // .arg("-o")
         // .arg("C:\\Users\\korvb\\Downloads\\%(title)s.%(ext)s")
         .arg("https://www.youtube.com/watch?v=Dl2vf04UCAM")
@@ -54,18 +67,31 @@ async fn download(on_event: Channel<DownloadEvent>) {
         .spawn()
         .unwrap();
 
-    let download_id = 1;
+    on_event.send(DownloadEvent::Started {
+        url: url.to_string(),
+        audio_format: audio_format.to_string(),
+        video_format: video_format.to_string(),
+    });
 
     {
         let stdout = cmd.stdout.as_mut().unwrap();
         let stdout_reader = BufReader::new(stdout);
+
+        // Every line that displays download progress in output includes \r instead of \n. By
+        // splitting them we can parse out the progress %, download speed and file size.
         let stdout_lines = stdout_reader.split(b'\r');
 
         for line in stdout_lines {
             let str = String::from_utf8(line.unwrap()).unwrap();
+
             println!("{:?}", str);
-            on_event.send(DownloadEvent::Progress { download_id, output: str }).unwrap();
+
+            on_event
+                .send(DownloadEvent::Progress { output: str })
+                .unwrap();
         }
+
+        Ok(())
     }
 }
 

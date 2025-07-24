@@ -30,7 +30,6 @@ export interface YtdlpFormatItem extends YtdlpFormat {
 }
 
 export const useFetchVideoInfo = (url: string) => {
-  // const [_url, setUrl] = useState(url);
   const [fetching, setFetching] = useState(false);
   const [audioFormats, setAudioFormats] = useState<YtdlpFormatItem[]>([]);
   const [videoFormats, setVideoFormats] = useState<YtdlpFormatItem[]>([]);
@@ -43,7 +42,7 @@ export const useFetchVideoInfo = (url: string) => {
       call = true;
 
       invoke<YtdlpResponse>("fetch_data", {
-        url: url,
+        url,
       })
         .then((response) => {
           if (call) {
@@ -83,6 +82,7 @@ export const useFetchVideoInfo = (url: string) => {
 
   return {
     setFetching,
+    fetching,
     audioFormats,
     videoFormats,
     videoTitle,
