@@ -1,8 +1,8 @@
 ## Next
 
 - List download speed.
-- List download size.
-- Display download success.
+- ~~List download size.~~
+- ~~Display download success.~~
 - ~~Divide into smaller components.~~
 - ~~Extract hook for fetching info.~~
 - ~~Extract hook for downloading.~~
@@ -11,13 +11,15 @@
 - Include indicator that shows that fetching formats is currently underway.
 - Include indicator that fetching formats has been completed.
 - Include option to only download video or audio.
-- Progress bar should display if it's downloading video or audio. If both are selected for download and one is completed, the bar should be set to 50%.
-- Display video title.
+- ~~Progress bar should display if it's downloading video or audio. If both are selected for download and one is completed, the bar should be set to 50%.~~
+- ~~Display video title.~~
 - Look over fetching hook so that only one call to fetch video info can be running.
 - Look over download hook so that only one call to download a video can be running.
 - Parse download speed, size and progress in rust and pass it to frontend.
 - Use constants for event system names on frontend.
 - Include a download cancel button.
+- ~~When download is complete, make the bar stay at 100%.~~
+- Move download progress code to download hook.
 
 ## 25-07-19
 
@@ -26,4 +28,12 @@
 
 ## 25-07-24
 
-~~Extract hook for downloading.~~
+- ~~Extract hook for downloading.~~
+
+## 25-07-25
+
+- ~~Display video title.~~
+- ~~Display download success.~~
+- ~~List download size.~~
+- ~~Progress bar should display if it's downloading video or audio. If both are selected for download and one is completed, the bar should be set to 50%.~~
+- ~~When download is complete, make the bar stay at 100%.~~

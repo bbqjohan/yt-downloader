@@ -59,8 +59,8 @@ async fn download(
     // let output = Command::new("yt-dlp").arg(format!("-F {}", url)).output();
     let mut cmd = Command::new("yt-dlp")
         .arg(format!("-f {}+{}", audio_format, video_format))
-        // .arg("-o")
-        // .arg("C:\\Users\\korvb\\Downloads\\%(title)s.%(ext)s")
+        .arg("-o")
+        .arg("C:\\Users\\korven\\Downloads\\%(title)s.%(ext)s")
         .arg("https://www.youtube.com/watch?v=Dl2vf04UCAM")
         .stdout(Stdio::piped())
         // .stderr(Stdio::piped())
@@ -91,8 +91,10 @@ async fn download(
                 .unwrap();
         }
 
-        Ok(())
+        on_event.send(DownloadEvent::Finished {}).unwrap();
     }
+
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

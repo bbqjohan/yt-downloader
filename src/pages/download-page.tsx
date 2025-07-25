@@ -10,9 +10,20 @@ import {
   SelectItem,
 } from "@heroui/react";
 import { OneColumnLayout } from "../layouts/one-column";
-import { useMemo, useState } from "react";
-import { useFetchVideoInfo, YtdlpFormatItem } from "../hooks/fetch-video-info";
+import { useEffect, useMemo, useState } from "react";
+import {
+  useFetchVideoInfo,
+  YtdlpFormat,
+  YtdlpFormatItem,
+} from "../hooks/fetch-video-info";
 import { useDownloadVideo } from "../hooks/download-video";
+
+interface DownloadItem {
+  readonly id: string;
+  readonly label: string;
+  readonly info: YtdlpFormat;
+  progress: number;
+}
 
 export function DownloadPage() {
   const [url, setUrl] = useState("https://www.youtube.com/watch?v=Dl2vf04UCAM");
@@ -26,6 +37,21 @@ export function DownloadPage() {
   const [selectedVideoFormat, setSelectedVideoFormat] = useState<Selection>(
     new Set([])
   );
+  const [downloadItems, setDownloadsItems] = useState<DownloadItem[]>([]);
+  const [downloadIndex, setDownloadIndex] = useState(0);
+  // const curDownloadItem = useMemo(() => {
+  //   return downloadItems[downloadIndex];
+  // }, [downloadItems, downloadIndex]);
+
+  useEffect(() => {
+    if (progress === 100 && downloadIndex !== downloadItems.length - 1) {
+      setDownloadIndex((prev) => prev + 1);
+    }
+
+    if (downloadItems[downloadIndex]) {
+      downloadItems[downloadIndex].progress = progress;
+    }
+  }, [progress]);
 
   const handleFetch = () => {
     setFetching(true);
@@ -38,13 +64,36 @@ export function DownloadPage() {
       selectedVideoFormat instanceof Set &&
       selectedVideoFormat.size === 1
     ) {
+      const audioFormat = selectedAudioFormat.values().next().value;
+      const videoFormat = selectedVideoFormat.values().next().value;
+      const audioInfo = audioFormats.find((f) => f.id === audioFormat);
+      const videoInfo = videoFormats.find((f) => f.id === videoFormat);
+
+      if (typeof audioFormat !== "string") {
+        throw Error("Audio format not selected");
+      }
+
+      if (typeof videoFormat !== "string") {
+        throw Error("Video format not selected");
+      }
+
+      if (audioInfo === undefined) {
+        throw Error("Could not find audio format info for: " + audioFormat);
+      }
+
+      if (videoInfo === undefined) {
+        throw Error("Could not find video format info for: " + videoFormat);
+      }
+
+      setDownloadsItems([
+        { id: "audio", label: "Audio", info: audioInfo, progress: 0 },
+        { id: "video", label: "Video", info: videoInfo, progress: 0 },
+      ]);
+
       download({
         url,
-
-        // Only one selection is allowed per format, so it's safe to assume a string since that's
-        // the only value type that can be set using the GUI.
-        audioFormat: selectedAudioFormat.values().next().value as string,
-        videoFormat: selectedVideoFormat.values().next().value as string,
+        audioFormat,
+        videoFormat,
       });
     }
   };
@@ -79,8 +128,9 @@ export function DownloadPage() {
           Download
         </Button>
         <ProgressBar
-          progress={progress}
-          state={progress === 100 ? "done" : isDownloading ? "downloading" : ""}
+          items={downloadItems}
+          index={downloadIndex}
+          state={isDownloading ? "downloading" : ""}
         />
       </div>
     </OneColumnLayout>
@@ -187,16 +237,20 @@ const DownloadOptions = ({
 // ===============================================================
 
 interface ProgressBarProps {
-  progress: number;
+  items: DownloadItem[];
+  index: number;
   state: "downloading" | "done" | "error" | "";
   error?: "string";
 }
 
-const ProgressBar = ({ progress, state, error }: ProgressBarProps) => {
+const ProgressBar = ({ state, error, items, index }: ProgressBarProps) => {
   const label = useMemo(() => {
     switch (state) {
       case "downloading":
-        return "Downloading...";
+        const item = items[index];
+        return `Downloading ${index + 1}/${items.length} - ${item.label} - ${
+          item.info.filesize_conversion
+        }`;
       case "done":
         return "Download complete!";
       case "error":
@@ -206,14 +260,24 @@ const ProgressBar = ({ progress, state, error }: ProgressBarProps) => {
     }
   }, [state]);
 
+  function getProgress(): number {
+    const item = items[index];
+
+    return item
+      ? Math.round(
+          (index / items.length + item.progress / (items.length * 100)) * 100
+        )
+      : 0;
+  }
+
   return (
     <Progress
-      aria-label={label}
+      aria-label={label === "" ? "Download progress bar" : label}
       color={typeof error === "string" ? "danger" : "success"}
       label={label}
       showValueLabel={true}
       size="md"
-      value={progress}
+      value={getProgress()}
     />
   );
 };

@@ -70,6 +70,8 @@ export const useDownloadVideo = () => {
           if (typeof percentage === "string") {
             setProgress(parseFloat(percentage));
           }
+        } else if (ongoing && message.event === "finished") {
+          console.log("Finished!");
         }
       };
 
