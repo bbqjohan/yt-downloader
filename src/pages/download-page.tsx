@@ -16,7 +16,7 @@ import {
   YtdlpFormat,
   YtdlpFormatItem,
 } from "../hooks/fetch-video-info";
-import { useDownloadVideo } from "../hooks/download-video";
+import { DownloadSpeed, useDownloadVideo } from "../hooks/download-video";
 
 interface DownloadItem {
   readonly id: string;
@@ -29,7 +29,7 @@ export function DownloadPage() {
   const [url, setUrl] = useState("https://www.youtube.com/watch?v=Dl2vf04UCAM");
   const { audioFormats, videoFormats, videoTitle, setFetching, fetching } =
     useFetchVideoInfo(url);
-  const { download, isDownloading, progress } = useDownloadVideo();
+  const { download, isDownloading, progress, speed } = useDownloadVideo();
 
   const [selectedAudioFormat, setSelectedAudioFormat] = useState<Selection>(
     new Set([])
@@ -131,6 +131,7 @@ export function DownloadPage() {
           items={downloadItems}
           index={downloadIndex}
           state={isDownloading ? "downloading" : ""}
+          speed={speed}
         />
       </div>
     </OneColumnLayout>
@@ -239,26 +240,33 @@ const DownloadOptions = ({
 interface ProgressBarProps {
   items: DownloadItem[];
   index: number;
+  speed: DownloadSpeed | undefined;
   state: "downloading" | "done" | "error" | "";
   error?: "string";
 }
 
-const ProgressBar = ({ state, error, items, index }: ProgressBarProps) => {
+const ProgressBar = ({
+  state,
+  error,
+  items,
+  index,
+  speed,
+}: ProgressBarProps) => {
   const label = useMemo(() => {
     switch (state) {
       case "downloading":
         const item = items[index];
         return `Downloading ${index + 1}/${items.length} - ${item.label} - ${
           item.info.filesize_conversion
-        }`;
+        } - ${speed ? `${speed.rate} ${speed.size}` : "0 B/s"}`;
       case "done":
         return "Download complete!";
       case "error":
         return "Error occurred.";
       case "":
-        return "";
+        return " ";
     }
-  }, [state]);
+  }, [state, speed]);
 
   function getProgress(): number {
     const item = items[index];

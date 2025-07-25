@@ -1,6 +1,6 @@
 ## Next
 
-- List download speed.
+- ~~List download speed.~~
 - ~~List download size.~~
 - ~~Display download success.~~
 - ~~Divide into smaller components.~~
@@ -37,3 +37,4 @@
 - ~~List download size.~~
 - ~~Progress bar should display if it's downloading video or audio. If both are selected for download and one is completed, the bar should be set to 50%.~~
 - ~~When download is complete, make the bar stay at 100%.~~
+- ~~List download speed.~~

@@ -27,6 +27,11 @@ type DownloadEvents =
   | DownloadEventProgress
   | DownloadEventFinished;
 
+export interface DownloadSpeed {
+  rate: number;
+  size: string;
+}
+
 function getPercentage(str: string): string | undefined {
   const result = /\d+(?:\.\d)*\%/.exec(str);
   return result ? result[0] : undefined;
@@ -37,14 +42,15 @@ function getSize(str: string): string | undefined {
   return result ? result[0] : undefined;
 }
 
-function getSpeed(str: string): string | undefined {
-  const result = /\d+\.\d+\w+\/s/.exec(str);
-  return result ? result[0].trim() : undefined;
+function getSpeed(str: string): DownloadSpeed | undefined {
+  const result = /(\d+\.\d+)(\w+\/s)/.exec(str);
+  return result ? { rate: parseFloat(result[1]), size: result[2] } : undefined;
 }
 
 export const useDownloadVideo = () => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [speed, setSpeed] = useState<DownloadSpeed>();
   const [url, setUrl] = useState("");
   const [audioFormat, setAudioFormat] = useState("");
   const [videoFormat, setVideoFormat] = useState("");
@@ -62,13 +68,17 @@ export const useDownloadVideo = () => {
         } else if (ongoing && message.event === "progress") {
           const output = message.data.output;
           const percentage = getPercentage(output);
-          const size = getSize(output);
           const speed = getSpeed(output);
 
-          console.log(percentage, size, speed);
+          console.log(speed);
 
           if (typeof percentage === "string") {
             setProgress(parseFloat(percentage));
+          }
+
+          // If undefined, yt-dlp failed to send the download speed.
+          if (typeof speed !== undefined) {
+            setSpeed(speed);
           }
         } else if (ongoing && message.event === "finished") {
           console.log("Finished!");
@@ -108,6 +118,7 @@ export const useDownloadVideo = () => {
     },
     isDownloading,
     progress,
+    speed,
     audioFormat,
     videoFormat,
   };
