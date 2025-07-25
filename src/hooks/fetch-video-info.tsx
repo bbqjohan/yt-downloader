@@ -36,16 +36,16 @@ export const useFetchVideoInfo = (url: string) => {
   const [videoTitle, setVideoTitle] = useState("");
 
   useEffect(() => {
-    let call = false;
+    let ongoing = false;
 
     if (fetching) {
-      call = true;
+      ongoing = true;
 
       invoke<YtdlpResponse>("fetch_data", {
         url,
       })
         .then((response) => {
-          if (call) {
+          if (ongoing) {
             setAudioFormats(
               response.audio
                 .filter((format) => !format.protocol.startsWith("m3u8"))
@@ -76,7 +76,7 @@ export const useFetchVideoInfo = (url: string) => {
     }
 
     return () => {
-      call = false;
+      ongoing = false;
     };
   }, [fetching, url]);
 

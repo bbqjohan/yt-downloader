@@ -1,7 +1,9 @@
 import {
   Button,
+  ButtonProps,
   Divider,
   Input,
+  InputProps,
   Progress,
   Select,
   Selection,
@@ -49,24 +51,15 @@ export function DownloadPage() {
 
   return (
     <OneColumnLayout>
-      <div className="text-black flex items-center gap-4">
-        <Input
-          label="URL"
-          type="url"
-          value={url}
-          onValueChange={setUrl}
-          isDisabled={isDownloading || fetching}
-        />
-        <Button
-          color="primary"
-          onPress={handleFetch}
-          isDisabled={isDownloading || fetching}
-        >
-          Fetch
-        </Button>
-      </div>
+      <UrlInput
+        url={url}
+        onUrlChange={setUrl}
+        onFetch={handleFetch}
+        isDisabled={isDownloading || fetching}
+      />
       <Divider className="my-6" />
       <DownloadOptions
+        videoTitle={videoTitle}
         isDisabled={isDownloading || fetching}
         audioFormats={audioFormats}
         videoFormats={videoFormats}
@@ -76,18 +69,54 @@ export function DownloadPage() {
         setSelectedVideoFormat={setSelectedVideoFormat}
       />
       <Divider className="my-6" />
-      <Button
-        color="primary"
-        className="self-start"
-        onPress={handleDownload}
-        isDisabled={isDownloading || fetching}
-      >
-        Download
-      </Button>
-      <ProgressBar progress={progress} state="downloading" />
+      <div className="flex flex-col gap-4">
+        <Button
+          color="primary"
+          className="self-start"
+          onPress={handleDownload}
+          isDisabled={isDownloading || fetching}
+        >
+          Download
+        </Button>
+        <ProgressBar
+          progress={progress}
+          state={progress === 100 ? "done" : isDownloading ? "downloading" : ""}
+        />
+      </div>
     </OneColumnLayout>
   );
 }
+
+// ===============================================================
+// ===============================================================
+// ===============================================================
+// ===============================================================
+
+interface UrlInputProps {
+  url: string;
+  isDisabled: boolean;
+  onFetch: ButtonProps["onPress"];
+  onUrlChange: InputProps["onValueChange"];
+}
+
+const UrlInput = ({ url, isDisabled, onFetch, onUrlChange }: UrlInputProps) => {
+  return (
+    <div className="text-black flex flex-col gap-4">
+      <div className="flex items-center gap-4">
+        <Input
+          label="URL"
+          type="url"
+          value={url}
+          onValueChange={onUrlChange}
+          isDisabled={isDisabled}
+        />
+        <Button color="primary" onPress={onFetch} isDisabled={isDisabled}>
+          Get info
+        </Button>
+      </div>
+    </div>
+  );
+};
 
 // ===============================================================
 // ===============================================================
@@ -100,6 +129,7 @@ interface DownloadOptionsProps {
   audioFormats: YtdlpFormatItem[];
   selectedAudioFormat: Selection;
   selectedVideoFormat: Selection;
+  videoTitle: string;
   setSelectedAudioFormat: React.Dispatch<React.SetStateAction<Selection>>;
   setSelectedVideoFormat: React.Dispatch<React.SetStateAction<Selection>>;
 }
@@ -116,11 +146,13 @@ const DownloadOptions = ({
   audioFormats,
   selectedAudioFormat,
   selectedVideoFormat,
+  videoTitle,
   setSelectedAudioFormat,
   setSelectedVideoFormat,
 }: DownloadOptionsProps) => {
   return (
-    <div className="text-black flex flex-col items-center gap-4">
+    <div className="text-black flex flex-col gap-4">
+      <div>Title: {videoTitle}</div>
       <Select
         label="Audio"
         placeholder="Select format"

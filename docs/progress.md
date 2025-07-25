@@ -17,6 +17,7 @@
 - Look over download hook so that only one call to download a video can be running.
 - Parse download speed, size and progress in rust and pass it to frontend.
 - Use constants for event system names on frontend.
+- Include a download cancel button.
 
 ## 25-07-19
 
