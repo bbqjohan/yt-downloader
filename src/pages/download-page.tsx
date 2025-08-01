@@ -17,19 +17,13 @@ import {
   YtdlpFormatItem,
 } from "../hooks/fetch-video-info";
 import { DownloadSpeed, useDownloadVideo } from "../hooks/download-video";
-
-interface DownloadItem {
-  readonly id: string;
-  readonly label: string;
-  readonly info: YtdlpFormat;
-  progress: number;
-}
+import { DownloadItem } from "../hooks/use-download-queue";
 
 export function DownloadPage() {
   const [url, setUrl] = useState("https://www.youtube.com/watch?v=Dl2vf04UCAM");
   const { audioFormats, videoFormats, videoTitle, setFetching, fetching } =
     useFetchVideoInfo(url);
-  const { download, isDownloading, progress, speed } = useDownloadVideo();
+  const downloader = useDownloadVideo();
 
   const [selectedAudioFormat, setSelectedAudioFormat] = useState<Selection>(
     new Set([])
@@ -37,21 +31,6 @@ export function DownloadPage() {
   const [selectedVideoFormat, setSelectedVideoFormat] = useState<Selection>(
     new Set([])
   );
-  const [downloadItems, setDownloadsItems] = useState<DownloadItem[]>([]);
-  const [downloadIndex, setDownloadIndex] = useState(0);
-  // const curDownloadItem = useMemo(() => {
-  //   return downloadItems[downloadIndex];
-  // }, [downloadItems, downloadIndex]);
-
-  useEffect(() => {
-    if (progress === 100 && downloadIndex !== downloadItems.length - 1) {
-      setDownloadIndex((prev) => prev + 1);
-    }
-
-    if (downloadItems[downloadIndex]) {
-      downloadItems[downloadIndex].progress = progress;
-    }
-  }, [progress]);
 
   const handleFetch = () => {
     setFetching(true);
@@ -64,33 +43,29 @@ export function DownloadPage() {
       selectedVideoFormat instanceof Set &&
       selectedVideoFormat.size === 1
     ) {
-      const audioFormat = selectedAudioFormat.values().next().value;
-      const videoFormat = selectedVideoFormat.values().next().value;
-      const audioInfo = audioFormats.find((f) => f.id === audioFormat);
-      const videoInfo = videoFormats.find((f) => f.id === videoFormat);
+      const audioId = selectedAudioFormat.values().next().value;
+      const videoId = selectedVideoFormat.values().next().value;
 
-      if (typeof audioFormat !== "string") {
+      if (typeof audioId !== "string") {
         throw Error("Audio format not selected");
       }
 
-      if (typeof videoFormat !== "string") {
+      if (typeof videoId !== "string") {
         throw Error("Video format not selected");
       }
 
-      if (audioInfo === undefined) {
-        throw Error("Could not find audio format info for: " + audioFormat);
+      const audioFormat = audioFormats.find((f) => f.id === audioId);
+      const videoFormat = videoFormats.find((f) => f.id === videoId);
+
+      if (audioFormat === undefined) {
+        throw Error("Could not find audio format info for: " + audioId);
       }
 
-      if (videoInfo === undefined) {
-        throw Error("Could not find video format info for: " + videoFormat);
+      if (videoFormat === undefined) {
+        throw Error("Could not find video format info for: " + videoId);
       }
 
-      setDownloadsItems([
-        { id: "audio", label: "Audio", info: audioInfo, progress: 0 },
-        { id: "video", label: "Video", info: videoInfo, progress: 0 },
-      ]);
-
-      download({
+      downloader.download({
         url,
         audioFormat,
         videoFormat,
@@ -104,12 +79,12 @@ export function DownloadPage() {
         url={url}
         onUrlChange={setUrl}
         onFetch={handleFetch}
-        isDisabled={isDownloading || fetching}
+        isDisabled={downloader.isDownloading || fetching}
       />
       <Divider className="my-6" />
       <DownloadOptions
         videoTitle={videoTitle}
-        isDisabled={isDownloading || fetching}
+        isDisabled={downloader.isDownloading || fetching}
         audioFormats={audioFormats}
         videoFormats={videoFormats}
         selectedAudioFormat={selectedAudioFormat}
@@ -123,15 +98,31 @@ export function DownloadPage() {
           color="primary"
           className="self-start"
           onPress={handleDownload}
-          isDisabled={isDownloading || fetching}
+          isDisabled={downloader.isDownloading || fetching}
         >
           Download
         </Button>
         <ProgressBar
-          items={downloadItems}
-          index={downloadIndex}
-          state={isDownloading ? "downloading" : ""}
-          speed={speed}
+          progress={downloader.queue.progress}
+          genLabel={() => {
+            const item = downloader.queue.current;
+
+            if (!item) {
+              return "";
+            }
+
+            let label = item.label;
+
+            if (item.filesize) {
+              label += ` - ${item.filesize}`;
+            }
+
+            if (downloader.speed) {
+              label += ` - ${downloader.speed.rate} ${downloader.speed.size}`;
+            }
+
+            return label;
+          }}
         />
       </div>
     </OneColumnLayout>
@@ -187,7 +178,7 @@ interface DownloadOptionsProps {
 
 function makeFormatLabel(item: YtdlpFormatItem): string {
   return `${item.format_id}\t|\t${item.ext}${
-    item.filesize_conversion ? `\t|\t${item.filesize_conversion}` : ""
+    item.filesize ? `\t|\t${item.filesize}` : ""
   }${item.resolution !== "audio only" ? `\t|\t${item.resolution}` : ""}`;
 }
 
@@ -238,54 +229,19 @@ const DownloadOptions = ({
 // ===============================================================
 
 interface ProgressBarProps {
-  items: DownloadItem[];
-  index: number;
-  speed: DownloadSpeed | undefined;
-  state: "downloading" | "done" | "error" | "";
-  error?: "string";
+  progress: number;
+  genLabel: () => string;
 }
 
-const ProgressBar = ({
-  state,
-  error,
-  items,
-  index,
-  speed,
-}: ProgressBarProps) => {
-  const label = useMemo(() => {
-    switch (state) {
-      case "downloading":
-        const item = items[index];
-        return `Downloading ${index + 1}/${items.length} - ${item.label} - ${
-          item.info.filesize_conversion
-        } - ${speed ? `${speed.rate} ${speed.size}` : "0 B/s"}`;
-      case "done":
-        return "Download complete!";
-      case "error":
-        return "Error occurred.";
-      case "":
-        return " ";
-    }
-  }, [state, speed]);
-
-  function getProgress(): number {
-    const item = items[index];
-
-    return item
-      ? Math.round(
-          (index / items.length + item.progress / (items.length * 100)) * 100
-        )
-      : 0;
-  }
-
+const ProgressBar = ({ progress, genLabel }: ProgressBarProps) => {
   return (
     <Progress
-      aria-label={label === "" ? "Download progress bar" : label}
-      color={typeof error === "string" ? "danger" : "success"}
-      label={label}
+      aria-label={"Download progress bar"}
+      color={"success"}
+      label={genLabel()}
       showValueLabel={true}
       size="md"
-      value={getProgress()}
+      value={progress}
     />
   );
 };

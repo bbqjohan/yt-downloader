@@ -18,11 +18,11 @@ export interface YtdlpFormat {
   video_ext: string;
   abr: MaybeNull<number>;
   vbr: MaybeNull<number>;
-  filesize: MaybeNull<number>;
+  filesize_exact: MaybeNull<number>;
   vcodec: string;
   protocol: string;
   fps: MaybeNull<number>;
-  filesize_conversion: MaybeNull<string>;
+  filesize: MaybeNull<string>;
 }
 
 export interface YtdlpFormatItem extends YtdlpFormat {

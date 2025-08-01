@@ -39,11 +39,11 @@ struct YtdlpFormat {
     video_ext: String,
     abr: Option<f64>,
     vbr: Option<f64>,
-    filesize: Option<u64>,
+    filesize_exact: Option<u64>,
     vcodec: String,
     protocol: String,
     fps: Option<f64>,
-    filesize_conversion: Option<String>,
+    filesize: Option<String>,
 }
 
 impl From<&serde_json::Value> for YtdlpFormat {
@@ -58,14 +58,14 @@ impl From<&serde_json::Value> for YtdlpFormat {
             format_id: format["format_id"].as_str().unwrap().to_owned(),
             resolution: format["resolution"].as_str().unwrap().to_owned(),
             video_ext: format["video_ext"].as_str().unwrap().to_owned(),
-            filesize: format["filesize"].as_u64(),
+            filesize_exact: format["filesize"].as_u64(),
             vcodec: format["vcodec"].as_str().unwrap().to_owned(),
             protocol: format["protocol"].as_str().unwrap().to_owned(),
             fps: format["fps"].as_f64(),
-            filesize_conversion: None,
+            filesize: None,
         };
 
-        ret.filesize_conversion = match ret.filesize {
+        ret.filesize = match ret.filesize_exact {
             Some(num) => Some(format!("{} MiB", to_mib(num))),
             _ => None,
         };

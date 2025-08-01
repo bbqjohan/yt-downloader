@@ -1,11 +1,12 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
-import { YtdlpResponse } from "./fetch-video-info";
+import { YtdlpFormatItem, YtdlpResponse } from "./fetch-video-info";
+import { DownloadItem, useDownloadQueue } from "./use-download-queue";
 
 interface DownloadParameters {
   url: string;
-  audioFormat: string;
-  videoFormat: string;
+  audioFormat: YtdlpFormatItem;
+  videoFormat: YtdlpFormatItem;
 }
 
 interface DownloadEvent<Name, Data> {
@@ -37,23 +38,64 @@ function getPercentage(str: string): string | undefined {
   return result ? result[0] : undefined;
 }
 
-function getSize(str: string): string | undefined {
-  const result = /\d+\.\d+\w+\s/.exec(str);
-  return result ? result[0] : undefined;
-}
-
 function getSpeed(str: string): DownloadSpeed | undefined {
   const result = /(\d+\.\d+)(\w+\/s)/.exec(str);
   return result ? { rate: parseFloat(result[1]), size: result[2] } : undefined;
 }
 
+class DlItem {
+  progress = 0;
+  speed = "";
+  size = "";
+  index = 0;
+  items: DlItem[] = [];
+  label = "";
+  id = "";
+  done = false;
+
+  // current(): Item {
+  //     return this.items.length > 0 ? this.items[this.index].current() : this;
+  // }
+
+  next(): DlItem | undefined {
+    if (this.items.length && this.index !== this.items.length - 1) {
+      this.index += 1;
+    }
+
+    return this.items[this.index];
+  }
+
+  // get done(): boolean {
+  //   return this.progress >= 100;
+  // }
+
+  getProgress(): number {
+    return this.items.length > 0
+      ? Math.floor(
+          (this.items.reduce((a, i) => a + +i.done, 0) / this.items.length +
+            this.progress / (this.items.length * 100)) *
+            100
+        )
+      : this.progress;
+  }
+
+  setProgress(progress: number) {
+    this.progress = progress;
+    this.done = this.progress >= 100;
+  }
+
+  get(id: string): DlItem | undefined {
+    return this.id === id ? this : this.items.find((i) => i.get(id));
+  }
+}
+
 export const useDownloadVideo = () => {
   const [isDownloading, setIsDownloading] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [speed, setSpeed] = useState<DownloadSpeed>();
   const [url, setUrl] = useState("");
   const [audioFormat, setAudioFormat] = useState("");
   const [videoFormat, setVideoFormat] = useState("");
+  const queue = useDownloadQueue();
 
   useEffect(() => {
     let ongoing = false;
@@ -70,10 +112,8 @@ export const useDownloadVideo = () => {
           const percentage = getPercentage(output);
           const speed = getSpeed(output);
 
-          console.log(speed);
-
           if (typeof percentage === "string") {
-            setProgress(parseFloat(percentage));
+            queue.update(parseFloat(percentage));
           }
 
           // If undefined, yt-dlp failed to send the download speed.
@@ -112,14 +152,30 @@ export const useDownloadVideo = () => {
   return {
     download: (data: DownloadParameters) => {
       setUrl(data.url);
-      setAudioFormat(data.audioFormat);
-      setVideoFormat(data.videoFormat);
+      setAudioFormat(data.audioFormat.id);
+      setVideoFormat(data.videoFormat.id);
       setIsDownloading(true);
+
+      queue.setItems([
+        new DownloadItem({
+          id: "audio",
+          label: "Audio",
+          filesize: data.audioFormat.filesize ?? undefined,
+          progress: 0,
+        }),
+        new DownloadItem({
+          id: "video",
+          label: "Video",
+          filesize: data.audioFormat.filesize ?? undefined,
+          progress: 0,
+        }),
+      ]);
     },
+
     isDownloading,
-    progress,
     speed,
     audioFormat,
     videoFormat,
+    queue,
   };
 };
