@@ -10,14 +10,10 @@ import {
   SelectItem,
 } from "@heroui/react";
 import { OneColumnLayout } from "../layouts/one-column";
-import { useEffect, useMemo, useState } from "react";
-import {
-  useFetchVideoInfo,
-  YtdlpFormat,
-  YtdlpFormatItem,
-} from "../hooks/fetch-video-info";
-import { DownloadSpeed, useDownloadVideo } from "../hooks/download-video";
-import { DownloadItem } from "../hooks/use-download-queue";
+import { useMemo, useState } from "react";
+import { useFetchVideoInfo, YtdlpFormatItem } from "../hooks/fetch-video-info";
+import { useDownloadVideo } from "../hooks/download-video";
+import { DownloadItem } from "../lib/download-engine";
 
 export function DownloadPage() {
   const [url, setUrl] = useState("https://www.youtube.com/watch?v=Dl2vf04UCAM");
@@ -31,6 +27,15 @@ export function DownloadPage() {
   const [selectedVideoFormat, setSelectedVideoFormat] = useState<Selection>(
     new Set([])
   );
+  const items = useMemo(() => {
+    let items = [];
+
+    for (const [_, action] of downloader.actions) {
+      items.push(action.item);
+    }
+
+    return items;
+  }, [downloader.actions]);
 
   const handleFetch = () => {
     setFetching(true);
@@ -102,16 +107,31 @@ export function DownloadPage() {
         >
           Download
         </Button>
-        <ProgressBar
-          progress={downloader.queue[0]?.getProgress()}
-          genLabel={() => {
-            return "downloading";
-          }}
-        />
+        <ProgressList items={items}></ProgressList>
       </div>
     </OneColumnLayout>
   );
 }
+
+const ProgressList = ({ items }: { items: DownloadItem[] }) => {
+  return (
+    <div className="flex flex-col gap-4">
+      {items.map((item) => {
+        return (
+          <Progress
+            key={item.id}
+            aria-label={"Download progress bar"}
+            color={"success"}
+            label={" " + item.label}
+            showValueLabel={true}
+            size="md"
+            value={item.progress}
+          />
+        );
+      })}
+    </div>
+  );
+};
 
 // ===============================================================
 // ===============================================================
@@ -212,20 +232,20 @@ const DownloadOptions = ({
 // ===============================================================
 // ===============================================================
 
-interface ProgressBarProps {
-  progress: number;
-  genLabel: () => string;
-}
+// interface ProgressBarProps {
+//   progress: number;
+//   genLabel: () => string;
+// }
 
-const ProgressBar = ({ progress, genLabel }: ProgressBarProps) => {
-  return (
-    <Progress
-      aria-label={"Download progress bar"}
-      color={"success"}
-      label={genLabel()}
-      showValueLabel={true}
-      size="md"
-      value={progress}
-    />
-  );
-};
+// const ProgressBar = ({ progress, genLabel }: ProgressBarProps) => {
+//   return (
+//     <Progress
+//       aria-label={"Download progress bar"}
+//       color={"success"}
+//       label={genLabel()}
+//       showValueLabel={true}
+//       size="md"
+//       value={progress}
+//     />
+//   );
+// };

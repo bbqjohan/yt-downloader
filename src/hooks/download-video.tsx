@@ -1,7 +1,11 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
-import { useEffect, useState } from "react";
-import { YtdlpFormatItem, YtdlpResponse } from "./fetch-video-info";
-import { DownloadEvent, DownloadItem } from "../lib/download-engine";
+import { useEffect, useMemo, useState } from "react";
+import { YtdlpFormatItem } from "./fetch-video-info";
+import {
+  DownloadEvent,
+  DownloadItem,
+  DownloadSpeed,
+} from "../lib/download-engine";
 
 interface DownloadParameters {
   url: string;
@@ -23,11 +27,6 @@ type DownloadEvents =
   | DownloadEventProgress
   | DownloadEventFinished;
 
-export interface DownloadSpeed {
-  rate: number;
-  size: string;
-}
-
 function getPercentage(str: string): string | undefined {
   const result = /\d+(?:\.\d)*\%/.exec(str);
   return result ? result[0] : undefined;
@@ -44,154 +43,101 @@ function isComplete(str: string): boolean {
   return str === "100%";
 }
 
-function recProgressUpdate(
-  progress: number,
-  items: DownloadItem[],
-  path: number[],
-  curItem: DownloadItem | undefined = undefined,
-  start: number = 0
-) {
-  const idx = path[start];
-  const next = idx === undefined ? undefined : items[idx];
-
-  if (next) {
-    recProgressUpdate(progress, next.items, path, next, start + 1);
-    next.setProgress(next.getProgress());
-  } else if (curItem) {
-    curItem.setProgress(progress);
-  }
+function createDownloadItem(data: DownloadParameters): DownloadItem {
+  return new DownloadItem({
+    id: data.url,
+    label: "File",
+    items: [
+      new DownloadItem({
+        id: "audio",
+        label: "Audio",
+        size: data.audioFormat.filesize ?? undefined,
+      }),
+      new DownloadItem({
+        id: "video",
+        label: "Video",
+        size: data.audioFormat.filesize ?? undefined,
+      }),
+    ],
+  });
 }
 
-function genQueue(queue: DownloadItem[]): number[] {
-  if (!queue.length) {
-    return [];
-  }
-
-  const path: number[] = [];
-
-  function inner(items: DownloadItem[]) {
-    for (let i = 0; i < items.length; i++) {
-      if (items[i] && !items[i].done) {
-        path.push(i);
-        inner(items[i].items);
-        break;
-      }
-    }
-  }
-
-  inner(queue);
-
-  return path;
+interface Action {
+  id: string;
+  item: DownloadItem;
+  channel: Channel<DownloadEvents>;
+  promise: Promise<unknown>;
 }
 
 export const useDownloadVideo = () => {
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [speed, setSpeed] = useState<DownloadSpeed>();
-  const [url, setUrl] = useState("");
-  const [audioFormat, setAudioFormat] = useState("");
-  const [videoFormat, setVideoFormat] = useState("");
-  const [queue, setQueue] = useState<DownloadItem[]>([]);
-  const [inQueue, setInQueue] = useState<number[]>([]);
+  const [downloadParams, setDownloadParams] = useState(
+    new Map<string, { id: string; params: DownloadParameters }>()
+  );
+  const [actions, setActions] = useState(new Map<string, Action>());
+  const isDownloading = useMemo(() => {
+    for (const [_, value] of actions) {
+      if (!value.item.done) {
+        return true;
+      }
+    }
 
-  const [items, setItems] = useState<DownloadItem[]>([]);
-  const [events, setEvents] = useState<Channel[]>([]);
+    return false;
+  }, [actions]);
 
-  // useEffect(() => {
-  //   let ongoing = false;
+  useEffect(() => {
+    const params = Array.from(downloadParams.values()).at(-1);
 
-  //   if (isDownloading) {
-  //     ongoing = true;
-  //     let _q = [...queue];
-  //     let _iq = [...inQueue];
+    if (params && !actions.has(params.id)) {
+      const item = createDownloadItem(params.params);
+      const channel = new Channel<DownloadEvents>((message) => {
+        if (message.event === "progress") {
+          const output = message.data.output;
+          const percentage = getPercentage(output);
+          const speed = getSpeed(output);
 
-  //     const onEvent = new Channel<DownloadEvents>();
-  //     onEvent.onmessage = (message) => {
-  //       if (ongoing && message.event === "started") {
-  //         console.log("Download started.");
-  //       } else if (ongoing && message.event === "progress") {
-  //         const output = message.data.output;
-  //         const percentage = getPercentage(output);
-  //         const speed = getSpeed(output);
+          if (typeof percentage === "string" && !isComplete(percentage)) {
+            const progress = parseFloat(percentage);
 
-  //         if (typeof percentage === "string" && !isComplete(percentage)) {
-  //           const progress = parseFloat(percentage);
-  //           const newQueue = [..._q];
+            item.updateProgress(progress);
 
-  //           recProgressUpdate(progress, newQueue, _iq);
+            setActions(
+              (prev) => new Map(prev.set(action.id, { ...action, item }))
+            );
+          }
 
-  //           _iq = genQueue(newQueue);
+          if (typeof speed === "string") {
+            item.speed = speed;
+            setActions(
+              (prev) => new Map(prev.set(action.id, { ...action, item }))
+            );
+          }
+        }
+      });
 
-  //           setQueue(newQueue);
-  //           setInQueue(_iq);
-  //         }
+      const action = {
+        id: params.id,
+        item,
+        channel,
+        promise: invoke<unknown>("download", {
+          url: params.params.url,
+          audioFormat: params.params.audioFormat.format_id,
+          videoFormat: params.params.videoFormat.format_id,
+          onEvent: channel,
+        }),
+      };
 
-  //         // If undefined, yt-dlp failed to send the download speed.
-  //         if (typeof speed !== undefined) {
-  //           setSpeed(speed);
-  //         }
-  //       } else if (ongoing && message.event === "finished") {
-  //         console.log("Finished!");
-  //       }
-  //     };
-
-  //     invoke<YtdlpResponse>("download", {
-  //       url,
-  //       audioFormat,
-  //       videoFormat,
-  //       onEvent,
-  //     })
-  //       .then((response) => {
-  //         console.log("Download success");
-  //         console.log(response);
-  //       })
-  //       .catch((error) => {
-  //         console.log("Download error");
-  //         console.error(error);
-  //       })
-  //       .finally(() => {
-  //         setIsDownloading(false);
-  //       });
-  //   }
-
-  //   return () => {
-  //     ongoing = false;
-  //   };
-  // }, [isDownloading, url, audioFormat, videoFormat]);
+      setActions((prev) => new Map(prev.set(action.id, action)));
+    }
+  }, [downloadParams]);
 
   return {
     download: (data: DownloadParameters) => {
-      setUrl(data.url);
-      setAudioFormat(data.audioFormat.id);
-      setVideoFormat(data.videoFormat.id);
-      setIsDownloading(true);
-
-      const _q = [
-        new DownloadItem({
-          id: data.url,
-          label: "File",
-          items: [
-            new DownloadItem({
-              id: "audio",
-              label: "Audio",
-              size: data.audioFormat.filesize ?? undefined,
-            }),
-            new DownloadItem({
-              id: "video",
-              label: "Video",
-              size: data.audioFormat.filesize ?? undefined,
-            }),
-          ],
-        }),
-      ];
-
-      setQueue(_q);
-      setInQueue(genQueue(_q));
+      setDownloadParams(
+        (prev) => new Map(prev.set(data.url, { id: data.url, params: data }))
+      );
     },
 
+    actions,
     isDownloading,
-    speed,
-    audioFormat,
-    videoFormat,
-    queue,
   };
 };

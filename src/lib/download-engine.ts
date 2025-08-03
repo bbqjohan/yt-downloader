@@ -1,3 +1,8 @@
+export interface DownloadSpeed {
+  rate: number;
+  size: string;
+}
+
 export interface DownloadEvent<Name, Data> {
   event: Name;
   data: Data;
@@ -5,7 +10,7 @@ export interface DownloadEvent<Name, Data> {
 
 export interface DownloadItemData {
   progress: number;
-  speed: string;
+  speed: DownloadSpeed;
   size: string;
   items: DownloadItem[];
   label: string;
@@ -15,7 +20,7 @@ export interface DownloadItemData {
 
 export class DownloadItem implements DownloadItemData {
   progress = 0;
-  speed = "";
+  speed: DownloadSpeed = { rate: 0, size: "" };
   size = "";
   items: DownloadItem[] = [];
   label = "";
@@ -23,6 +28,10 @@ export class DownloadItem implements DownloadItemData {
 
   get done(): boolean {
     return this.progress >= 100;
+  }
+
+  get current(): DownloadItem {
+    return this.items.find((i) => !i.done) ?? this;
   }
 
   constructor(args: Partial<DownloadItemData>) {
@@ -47,7 +56,56 @@ export class DownloadItem implements DownloadItemData {
     this.progress = Math.min(progress, 100);
   }
 
+  updateProgress(progress: number) {
+    if (this.items.length && !this.done) {
+      this.current.updateProgress(progress);
+      this.setProgress(this.getProgress());
+    } else if (!this.items.length && !this.done) {
+      this.setProgress(progress);
+    }
+  }
+
   get(id: string): DownloadItem | undefined {
     return this.id === id ? this : this.items.find((i) => i.get(id));
   }
+}
+
+function recProgressUpdate(
+  progress: number,
+  items: DownloadItem[],
+  path: number[],
+  curItem: DownloadItem | undefined = undefined,
+  start: number = 0
+) {
+  const idx = path[start];
+  const next = idx === undefined ? undefined : items[idx];
+
+  if (next) {
+    recProgressUpdate(progress, next.items, path, next, start + 1);
+    next.setProgress(next.getProgress());
+  } else if (curItem) {
+    curItem.setProgress(progress);
+  }
+}
+
+function genQueue(queue: DownloadItem[]): number[] {
+  if (!queue.length) {
+    return [];
+  }
+
+  const path: number[] = [];
+
+  function inner(items: DownloadItem[]) {
+    for (let i = 0; i < items.length; i++) {
+      if (items[i] && !items[i].done) {
+        path.push(i);
+        inner(items[i].items);
+        break;
+      }
+    }
+  }
+
+  inner(queue);
+
+  return path;
 }
