@@ -103,25 +103,9 @@ export function DownloadPage() {
           Download
         </Button>
         <ProgressBar
-          progress={downloader.queue.progress}
+          progress={downloader.queue[0]?.getProgress()}
           genLabel={() => {
-            const item = downloader.queue.current;
-
-            if (!item) {
-              return "";
-            }
-
-            let label = item.label;
-
-            if (item.filesize) {
-              label += ` - ${item.filesize}`;
-            }
-
-            if (downloader.speed) {
-              label += ` - ${downloader.speed.rate} ${downloader.speed.size}`;
-            }
-
-            return label;
+            return "downloading";
           }}
         />
       </div>

@@ -1,17 +1,12 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 import { YtdlpFormatItem, YtdlpResponse } from "./fetch-video-info";
-import { DownloadItem, useDownloadQueue } from "./use-download-queue";
+import { DownloadEvent, DownloadItem } from "../lib/download-engine";
 
 interface DownloadParameters {
   url: string;
   audioFormat: YtdlpFormatItem;
   videoFormat: YtdlpFormatItem;
-}
-
-interface DownloadEvent<Name, Data> {
-  event: Name;
-  data: Data;
 }
 
 type DownloadEventStarted = DownloadEvent<"started", {}>;
@@ -43,50 +38,50 @@ function getSpeed(str: string): DownloadSpeed | undefined {
   return result ? { rate: parseFloat(result[1]), size: result[2] } : undefined;
 }
 
-class DlItem {
-  progress = 0;
-  speed = "";
-  size = "";
-  index = 0;
-  items: DlItem[] = [];
-  label = "";
-  id = "";
-  done = false;
+function isComplete(str: string): boolean {
+  // When reaching 100%, two outputs will come from backend. One with the progress of the
+  // download, "100.0%", and one with "100%". The second is treated as download complete.
+  return str === "100%";
+}
 
-  // current(): Item {
-  //     return this.items.length > 0 ? this.items[this.index].current() : this;
-  // }
+function recProgressUpdate(
+  progress: number,
+  items: DownloadItem[],
+  path: number[],
+  curItem: DownloadItem | undefined = undefined,
+  start: number = 0
+) {
+  const idx = path[start];
+  const next = idx === undefined ? undefined : items[idx];
 
-  next(): DlItem | undefined {
-    if (this.items.length && this.index !== this.items.length - 1) {
-      this.index += 1;
+  if (next) {
+    recProgressUpdate(progress, next.items, path, next, start + 1);
+    next.setProgress(next.getProgress());
+  } else if (curItem) {
+    curItem.setProgress(progress);
+  }
+}
+
+function genQueue(queue: DownloadItem[]): number[] {
+  if (!queue.length) {
+    return [];
+  }
+
+  const path: number[] = [];
+
+  function inner(items: DownloadItem[]) {
+    for (let i = 0; i < items.length; i++) {
+      if (items[i] && !items[i].done) {
+        path.push(i);
+        inner(items[i].items);
+        break;
+      }
     }
-
-    return this.items[this.index];
   }
 
-  // get done(): boolean {
-  //   return this.progress >= 100;
-  // }
+  inner(queue);
 
-  getProgress(): number {
-    return this.items.length > 0
-      ? Math.floor(
-          (this.items.reduce((a, i) => a + +i.done, 0) / this.items.length +
-            this.progress / (this.items.length * 100)) *
-            100
-        )
-      : this.progress;
-  }
-
-  setProgress(progress: number) {
-    this.progress = progress;
-    this.done = this.progress >= 100;
-  }
-
-  get(id: string): DlItem | undefined {
-    return this.id === id ? this : this.items.find((i) => i.get(id));
-  }
+  return path;
 }
 
 export const useDownloadVideo = () => {
@@ -95,59 +90,73 @@ export const useDownloadVideo = () => {
   const [url, setUrl] = useState("");
   const [audioFormat, setAudioFormat] = useState("");
   const [videoFormat, setVideoFormat] = useState("");
-  const queue = useDownloadQueue();
+  const [queue, setQueue] = useState<DownloadItem[]>([]);
+  const [inQueue, setInQueue] = useState<number[]>([]);
 
-  useEffect(() => {
-    let ongoing = false;
+  const [items, setItems] = useState<DownloadItem[]>([]);
+  const [events, setEvents] = useState<Channel[]>([]);
 
-    if (isDownloading) {
-      ongoing = true;
+  // useEffect(() => {
+  //   let ongoing = false;
 
-      const onEvent = new Channel<DownloadEvents>();
-      onEvent.onmessage = (message) => {
-        if (ongoing && message.event === "started") {
-          console.log("Download started.");
-        } else if (ongoing && message.event === "progress") {
-          const output = message.data.output;
-          const percentage = getPercentage(output);
-          const speed = getSpeed(output);
+  //   if (isDownloading) {
+  //     ongoing = true;
+  //     let _q = [...queue];
+  //     let _iq = [...inQueue];
 
-          if (typeof percentage === "string") {
-            queue.update(parseFloat(percentage));
-          }
+  //     const onEvent = new Channel<DownloadEvents>();
+  //     onEvent.onmessage = (message) => {
+  //       if (ongoing && message.event === "started") {
+  //         console.log("Download started.");
+  //       } else if (ongoing && message.event === "progress") {
+  //         const output = message.data.output;
+  //         const percentage = getPercentage(output);
+  //         const speed = getSpeed(output);
 
-          // If undefined, yt-dlp failed to send the download speed.
-          if (typeof speed !== undefined) {
-            setSpeed(speed);
-          }
-        } else if (ongoing && message.event === "finished") {
-          console.log("Finished!");
-        }
-      };
+  //         if (typeof percentage === "string" && !isComplete(percentage)) {
+  //           const progress = parseFloat(percentage);
+  //           const newQueue = [..._q];
 
-      invoke<YtdlpResponse>("download", {
-        url,
-        audioFormat,
-        videoFormat,
-        onEvent,
-      })
-        .then((response) => {
-          console.log("Download success");
-          console.log(response);
-        })
-        .catch((error) => {
-          console.log("Download error");
-          console.error(error);
-        })
-        .finally(() => {
-          setIsDownloading(false);
-        });
-    }
+  //           recProgressUpdate(progress, newQueue, _iq);
 
-    return () => {
-      ongoing = false;
-    };
-  }, [isDownloading, url, audioFormat, videoFormat]);
+  //           _iq = genQueue(newQueue);
+
+  //           setQueue(newQueue);
+  //           setInQueue(_iq);
+  //         }
+
+  //         // If undefined, yt-dlp failed to send the download speed.
+  //         if (typeof speed !== undefined) {
+  //           setSpeed(speed);
+  //         }
+  //       } else if (ongoing && message.event === "finished") {
+  //         console.log("Finished!");
+  //       }
+  //     };
+
+  //     invoke<YtdlpResponse>("download", {
+  //       url,
+  //       audioFormat,
+  //       videoFormat,
+  //       onEvent,
+  //     })
+  //       .then((response) => {
+  //         console.log("Download success");
+  //         console.log(response);
+  //       })
+  //       .catch((error) => {
+  //         console.log("Download error");
+  //         console.error(error);
+  //       })
+  //       .finally(() => {
+  //         setIsDownloading(false);
+  //       });
+  //   }
+
+  //   return () => {
+  //     ongoing = false;
+  //   };
+  // }, [isDownloading, url, audioFormat, videoFormat]);
 
   return {
     download: (data: DownloadParameters) => {
@@ -156,20 +165,27 @@ export const useDownloadVideo = () => {
       setVideoFormat(data.videoFormat.id);
       setIsDownloading(true);
 
-      queue.setItems([
+      const _q = [
         new DownloadItem({
-          id: "audio",
-          label: "Audio",
-          filesize: data.audioFormat.filesize ?? undefined,
-          progress: 0,
+          id: data.url,
+          label: "File",
+          items: [
+            new DownloadItem({
+              id: "audio",
+              label: "Audio",
+              size: data.audioFormat.filesize ?? undefined,
+            }),
+            new DownloadItem({
+              id: "video",
+              label: "Video",
+              size: data.audioFormat.filesize ?? undefined,
+            }),
+          ],
         }),
-        new DownloadItem({
-          id: "video",
-          label: "Video",
-          filesize: data.audioFormat.filesize ?? undefined,
-          progress: 0,
-        }),
-      ]);
+      ];
+
+      setQueue(_q);
+      setInQueue(genQueue(_q));
     },
 
     isDownloading,
