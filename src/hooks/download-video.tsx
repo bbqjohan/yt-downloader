@@ -66,6 +66,7 @@ function createDownloadItem(data: DownloadParameters): DownloadItem {
 interface Action {
   id: string;
   item: DownloadItem;
+  state: "downloading" | "finished";
   channel: Channel<DownloadEvents>;
   promise: Promise<unknown>;
 }
@@ -88,7 +89,11 @@ export const useDownloadVideo = () => {
   useEffect(() => {
     const params = Array.from(downloadParams.values()).at(-1);
 
-    if (params && !actions.has(params.id)) {
+    if (
+      params &&
+      (!actions.has(params.id) ||
+        actions.get(params.id)?.state !== "downloading")
+    ) {
       const item = createDownloadItem(params.params);
       const channel = new Channel<DownloadEvents>((message) => {
         if (message.event === "progress") {
@@ -112,13 +117,20 @@ export const useDownloadVideo = () => {
               (prev) => new Map(prev.set(action.id, { ...action, item }))
             );
           }
+        } else if (message.event === "finished") {
+          setActions((prev) => {
+            return new Map(
+              prev.set(action.id, { ...action, state: "finished" })
+            );
+          });
         }
       });
 
-      const action = {
+      const action: Action = {
         id: params.id,
         item,
         channel,
+        state: "downloading",
         promise: invoke<unknown>("download", {
           url: params.params.url,
           audioFormat: params.params.audioFormat.format_id,
@@ -136,6 +148,10 @@ export const useDownloadVideo = () => {
       setDownloadParams(
         (prev) => new Map(prev.set(data.url, { id: data.url, params: data }))
       );
+    },
+
+    getParams: (itemId: string) => {
+      return downloadParams.get(itemId);
     },
 
     actions,

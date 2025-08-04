@@ -10,7 +10,7 @@ import {
   SelectItem,
 } from "@heroui/react";
 import { OneColumnLayout } from "../layouts/one-column";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useFetchVideoInfo, YtdlpFormatItem } from "../hooks/fetch-video-info";
 import { useDownloadVideo } from "../hooks/download-video";
 import { DownloadItem } from "../lib/download-engine";
@@ -79,6 +79,16 @@ export function DownloadPage() {
     }
   };
 
+  const onRedownload = useCallback((itemId: string) => {
+    const params = downloader.getParams(itemId);
+
+    console.log(itemId, params);
+
+    if (params) {
+      downloader.download(params.params);
+    }
+  }, []);
+
   return (
     <OneColumnLayout>
       <UrlInput
@@ -108,26 +118,43 @@ export function DownloadPage() {
         >
           Download
         </Button>
-        <ProgressList items={items}></ProgressList>
+        <ProgressList items={items} onRedownload={onRedownload}></ProgressList>
       </div>
     </OneColumnLayout>
   );
 }
 
-const ProgressList = ({ items }: { items: DownloadItem[] }) => {
+const ProgressList = ({
+  items,
+  onRedownload,
+}: {
+  items: DownloadItem[];
+  onRedownload: (itemId: string) => void;
+}) => {
   return (
     <div className="flex flex-col gap-4">
       {items.map((item) => {
         return (
-          <Progress
-            key={item.id}
-            aria-label={"Download progress bar"}
-            color={"success"}
-            label={" " + item.label}
-            showValueLabel={true}
-            size="md"
-            value={item.progress}
-          />
+          <div className="flex flex-col gap-4" key={item.id}>
+            <Progress
+              aria-label={"Download progress bar"}
+              color={"success"}
+              label={" " + item.label}
+              showValueLabel={true}
+              size="md"
+              value={item.progress}
+            />
+            <div className="flex gap-4">
+              <Button
+                onPress={() => {
+                  onRedownload(item.id);
+                }}
+                isDisabled={!item.done}
+              >
+                Re-Download
+              </Button>
+            </div>
+          </div>
         );
       })}
     </div>

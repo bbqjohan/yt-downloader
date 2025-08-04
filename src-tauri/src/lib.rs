@@ -59,6 +59,7 @@ async fn download(
     // let output = Command::new("yt-dlp").arg(format!("-F {}", url)).output();
     let mut cmd = Command::new("yt-dlp")
         .arg(format!("-f {}+{}", audio_format, video_format))
+        .arg("--force-overwrites")
         .arg("-o")
         .arg("C:\\Users\\korven\\Downloads\\%(title)s.%(ext)s")
         .arg("https://www.youtube.com/watch?v=Dl2vf04UCAM")
