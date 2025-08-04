@@ -9,6 +9,7 @@ import {
 
 interface DownloadParameters {
   url: string;
+  videoTitle: string;
   audioFormat: YtdlpFormatItem;
   videoFormat: YtdlpFormatItem;
 }
@@ -46,7 +47,7 @@ function isComplete(str: string): boolean {
 function createDownloadItem(data: DownloadParameters): DownloadItem {
   return new DownloadItem({
     id: data.url,
-    label: "File",
+    label: data.videoTitle,
     items: [
       new DownloadItem({
         id: "audio",

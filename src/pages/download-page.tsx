@@ -72,6 +72,7 @@ export function DownloadPage() {
 
       downloader.download({
         url,
+        videoTitle,
         audioFormat,
         videoFormat,
       });
