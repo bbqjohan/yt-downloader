@@ -14,6 +14,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useFetchVideoInfo, YtdlpFormatItem } from "../hooks/fetch-video-info";
 import { useDownloadVideo } from "../hooks/download-video";
 import { DownloadItem } from "../lib/download-engine";
+import { open } from "@tauri-apps/plugin-dialog";
 
 export function DownloadPage() {
   const [url, setUrl] = useState("https://www.youtube.com/watch?v=Dl2vf04UCAM");
@@ -36,6 +37,8 @@ export function DownloadPage() {
 
     return items;
   }, [downloader.actions]);
+
+  const [outputDir, setOutputDir] = useState(window.defaultOutputDir);
 
   const handleFetch = () => {
     setFetching(true);
@@ -70,11 +73,20 @@ export function DownloadPage() {
         throw Error("Could not find video format info for: " + videoId);
       }
 
+      if (!videoTitle) {
+        throw Error("Video title is not set");
+      }
+
+      if (!outputDir) {
+        throw Error("Output directory is not set");
+      }
+
       downloader.download({
         url,
         videoTitle,
         audioFormat,
         videoFormat,
+        outputDir,
       });
     }
   };
@@ -105,6 +117,8 @@ export function DownloadPage() {
         videoFormats={videoFormats}
         selectedAudioFormat={selectedAudioFormat}
         selectedVideoFormat={selectedVideoFormat}
+        outputDir={outputDir}
+        onOutputChange={setOutputDir}
         setSelectedAudioFormat={setSelectedAudioFormat}
         setSelectedVideoFormat={setSelectedVideoFormat}
       />
@@ -204,8 +218,10 @@ interface DownloadOptionsProps {
   selectedAudioFormat: Selection;
   selectedVideoFormat: Selection;
   videoTitle: string;
+  outputDir: string;
   setSelectedAudioFormat: React.Dispatch<React.SetStateAction<Selection>>;
   setSelectedVideoFormat: React.Dispatch<React.SetStateAction<Selection>>;
+  onOutputChange: React.Dispatch<React.SetStateAction<string>>;
 }
 
 function makeFormatLabel(item: YtdlpFormatItem): string {
@@ -221,12 +237,40 @@ const DownloadOptions = ({
   selectedAudioFormat,
   selectedVideoFormat,
   videoTitle,
+  outputDir,
   setSelectedAudioFormat,
   setSelectedVideoFormat,
+  onOutputChange,
 }: DownloadOptionsProps) => {
+  async function handleOutputDir() {
+    const path = await open({
+      directory: true,
+      multiple: false,
+      title: "Select output directory",
+    });
+
+    if (typeof path === "string") {
+      onOutputChange(path);
+    }
+  }
+
+  const onOutputDirKeyDown: React.KeyboardEventHandler<HTMLInputElement> =
+    useCallback((e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        handleOutputDir();
+      }
+    }, []);
+
   return (
     <div className="text-black flex flex-col gap-4">
       <div>Title: {videoTitle}</div>
+      <Input
+        label="Output Directory"
+        value={outputDir}
+        readOnly
+        onClick={handleOutputDir}
+        onKeyDown={onOutputDirKeyDown}
+      />
       <Select
         label="Audio"
         placeholder="Select format"

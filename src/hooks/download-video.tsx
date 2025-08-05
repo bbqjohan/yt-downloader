@@ -9,6 +9,7 @@ import {
 
 interface DownloadParameters {
   url: string;
+  outputDir: string;
   videoTitle: string;
   audioFormat: YtdlpFormatItem;
   videoFormat: YtdlpFormatItem;
@@ -133,6 +134,7 @@ export const useDownloadVideo = () => {
         state: "downloading",
         promise: invoke<unknown>("download", {
           url: params.params.url,
+          outputDir: params.params.outputDir,
           audioFormat: params.params.audioFormat.format_id,
           videoFormat: params.params.videoFormat.format_id,
           onEvent: channel,

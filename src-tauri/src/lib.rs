@@ -54,6 +54,7 @@ async fn download(
     url: &str,
     audio_format: &str,
     video_format: &str,
+    output_dir: &str,
     on_event: Channel<DownloadEvent>,
 ) -> Result<(), ()> {
     // let output = Command::new("yt-dlp").arg(format!("-F {}", url)).output();
@@ -61,7 +62,7 @@ async fn download(
         .arg(format!("-f {}+{}", audio_format, video_format))
         .arg("--force-overwrites")
         .arg("-o")
-        .arg("C:\\Users\\korven\\Downloads\\%(title)s.%(ext)s")
+        .arg(format!("{}\\%(title)s.%(ext)s", output_dir))
         .arg("https://www.youtube.com/watch?v=Dl2vf04UCAM")
         .stdout(Stdio::piped())
         // .stderr(Stdio::piped())
@@ -101,6 +102,7 @@ async fn download(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![greet, fetch_data, download])
         .run(tauri::generate_context!())
