@@ -55,6 +55,7 @@ async fn download(
     audio_format: &str,
     video_format: &str,
     output_dir: &str,
+    video_title: &str,
     on_event: Channel<DownloadEvent>,
 ) -> Result<(), ()> {
     // let output = Command::new("yt-dlp").arg(format!("-F {}", url)).output();
@@ -62,8 +63,8 @@ async fn download(
         .arg(format!("-f {}+{}", audio_format, video_format))
         .arg("--force-overwrites")
         .arg("-o")
-        .arg(format!("{}\\%(title)s.%(ext)s", output_dir))
-        .arg("https://www.youtube.com/watch?v=Dl2vf04UCAM")
+        .arg(format!("{}\\{}.%(ext)s", output_dir, video_title))
+        .arg(url)
         .stdout(Stdio::piped())
         // .stderr(Stdio::piped())
         .spawn()

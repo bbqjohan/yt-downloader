@@ -20,6 +20,8 @@
 - Include a download cancel button.
 - ~~When download is complete, make the bar stay at 100%.~~
 - Move download progress code to download hook.
+- Try to use template variables when using the original video title when downloading videos. Noticed that a "?" was replaced with "#" in the downloaded file when passing the title from frontend to backend.
+- Download items must have unique ids and it can't be the url. This is so that you can have multiple downloads with different options using the same url and be able to list them in the UI. This seems to be a UI specific issue, since the executed commands to download multiple videos using the same url still works.
 
 ## 25-07-19
 

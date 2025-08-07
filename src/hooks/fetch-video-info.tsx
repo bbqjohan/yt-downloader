@@ -29,11 +29,15 @@ export interface YtdlpFormatItem extends YtdlpFormat {
   id: string;
 }
 
+export interface VideoInfo {
+  audioFormats: YtdlpFormatItem[];
+  videoFormats: YtdlpFormatItem[];
+  videoTitle: string;
+}
+
 export const useFetchVideoInfo = (url: string) => {
   const [fetching, setFetching] = useState(false);
-  const [audioFormats, setAudioFormats] = useState<YtdlpFormatItem[]>([]);
-  const [videoFormats, setVideoFormats] = useState<YtdlpFormatItem[]>([]);
-  const [videoTitle, setVideoTitle] = useState("");
+  const [videoInfo, setVideoInfo] = useState<VideoInfo>();
 
   useEffect(() => {
     let ongoing = false;
@@ -46,25 +50,23 @@ export const useFetchVideoInfo = (url: string) => {
       })
         .then((response) => {
           if (ongoing) {
-            setAudioFormats(
-              response.audio
-                .filter((format) => !format.protocol.startsWith("m3u8"))
-                .map((format) => ({
-                  ...format,
-                  id: format.format_id,
-                }))
-            );
+            const audioFormats = response.audio
+              .filter((format) => !format.protocol.startsWith("m3u8"))
+              .map((format) => ({
+                ...format,
+                id: format.format_id,
+              }));
 
-            setVideoFormats(
-              response.video
-                .filter((format) => !format.protocol.startsWith("m3u8"))
-                .map((format) => ({
-                  ...format,
-                  id: format.format_id,
-                }))
-            );
+            const videoFormats = response.video
+              .filter((format) => !format.protocol.startsWith("m3u8"))
+              .map((format) => ({
+                ...format,
+                id: format.format_id,
+              }));
 
-            setVideoTitle(response.title);
+            const videoTitle = response.title;
+
+            setVideoInfo({ audioFormats, videoFormats, videoTitle });
           }
         })
         .catch((error) => {
@@ -82,9 +84,7 @@ export const useFetchVideoInfo = (url: string) => {
 
   return {
     setFetching,
+    videoInfo,
     fetching,
-    audioFormats,
-    videoFormats,
-    videoTitle,
   };
 };

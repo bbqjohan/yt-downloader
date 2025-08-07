@@ -11,16 +11,16 @@ import {
   SelectItem,
 } from "@heroui/react";
 import { OneColumnLayout } from "../layouts/one-column";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useFetchVideoInfo, YtdlpFormatItem } from "../hooks/fetch-video-info";
 import { useDownloadVideo, VideoDownloadItem } from "../hooks/download-video";
 import { open } from "@tauri-apps/plugin-dialog";
 
 export function DownloadPage() {
   const [url, setUrl] = useState("https://www.youtube.com/watch?v=Dl2vf04UCAM");
-  const { audioFormats, videoFormats, videoTitle, setFetching, fetching } =
-    useFetchVideoInfo(url);
+  const { videoInfo, setFetching, fetching } = useFetchVideoInfo(url);
   const downloader = useDownloadVideo();
+  const [customVideoTitle, setCustomVideoTitle] = useState("");
 
   const [selectedAudioFormat, setSelectedAudioFormat] = useState<Selection>(
     new Set([])
@@ -36,6 +36,12 @@ export function DownloadPage() {
   const handleFetch = () => {
     setFetching(true);
   };
+
+  useEffect(() => {
+    if (videoInfo) {
+      setCustomVideoTitle(videoInfo.videoTitle);
+    }
+  }, [videoInfo]);
 
   const handleDownload = () => {
     if (
@@ -67,7 +73,7 @@ export function DownloadPage() {
       //   throw Error("Could not find video format info for: " + videoId);
       // }
 
-      if (!videoTitle) {
+      if (!customVideoTitle) {
         throw Error("Video title is not set");
       }
 
@@ -76,8 +82,8 @@ export function DownloadPage() {
       }
 
       if (preferWorstAudio && preferWorstVideo) {
-        const af = audioFormats.at(0);
-        const vf = videoFormats.at(0);
+        const af = videoInfo?.audioFormats.at(0);
+        const vf = videoInfo?.videoFormats.at(0);
 
         if (af) {
           af.format_id = "wa";
@@ -92,7 +98,7 @@ export function DownloadPage() {
         if (af && vf) {
           downloader.download({
             url,
-            videoTitle,
+            videoTitle: customVideoTitle,
             audioFormat: af,
             videoFormat: vf,
             outputDir,
@@ -113,6 +119,12 @@ export function DownloadPage() {
     [downloader.items]
   );
 
+  const resetVideoTitle = useCallback(() => {
+    if (videoInfo) {
+      setCustomVideoTitle(videoInfo.videoTitle);
+    }
+  }, [videoInfo?.videoTitle]);
+
   return (
     <OneColumnLayout>
       <UrlInput
@@ -123,10 +135,10 @@ export function DownloadPage() {
       />
       <Divider className="my-6" />
       <DownloadOptions
-        videoTitle={videoTitle}
+        videoTitle={customVideoTitle}
         isDisabled={downloader.isDownloading || fetching}
-        audioFormats={audioFormats}
-        videoFormats={videoFormats}
+        audioFormats={videoInfo?.audioFormats || []}
+        videoFormats={videoInfo?.videoFormats || []}
         selectedAudioFormat={selectedAudioFormat}
         selectedVideoFormat={selectedVideoFormat}
         outputDir={outputDir}
@@ -137,6 +149,8 @@ export function DownloadPage() {
         preferWorstVideo={preferWorstVideo}
         onPreferWorstAudio={setPreferWorstAudio}
         onPreferWorstVideo={setPreferWorstVideo}
+        onVideoTitle={setCustomVideoTitle}
+        onUseDefaultVideoTitle={resetVideoTitle}
       />
       <Divider className="my-6" />
       <div className="flex flex-col gap-4">
@@ -245,6 +259,8 @@ interface DownloadOptionsProps {
   preferWorstVideo: boolean;
   onPreferWorstAudio: React.Dispatch<React.SetStateAction<boolean>>;
   onPreferWorstVideo: React.Dispatch<React.SetStateAction<boolean>>;
+  onVideoTitle: React.Dispatch<React.SetStateAction<string>>;
+  onUseDefaultVideoTitle: () => void;
 }
 
 function makeFormatLabel(item: YtdlpFormatItem): string {
@@ -268,6 +284,8 @@ const DownloadOptions = ({
   preferWorstVideo,
   onPreferWorstAudio,
   onPreferWorstVideo,
+  onVideoTitle,
+  onUseDefaultVideoTitle,
 }: DownloadOptionsProps) => {
   async function handleOutputDir() {
     const path = await open({
@@ -290,7 +308,16 @@ const DownloadOptions = ({
 
   return (
     <div className="text-black flex flex-col gap-4">
-      <div>Title: {videoTitle}</div>
+      <div className="flex gap-4 items-center">
+        {" "}
+        <Input
+          label="Video title"
+          value={videoTitle}
+          onValueChange={onVideoTitle}
+        />
+        <Button onPress={onUseDefaultVideoTitle}>Use default</Button>
+      </div>
+
       <Input
         label="Output Directory"
         value={outputDir}

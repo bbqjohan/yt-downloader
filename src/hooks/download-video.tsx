@@ -123,6 +123,7 @@ export const useDownloadVideo = () => {
         outputDir: _params.params.outputDir,
         audioFormat: _params.params.audioFormat.format_id,
         videoFormat: _params.params.videoFormat.format_id,
+        videoTitle: _params.params.videoTitle,
         onEvent: channel,
       });
 
