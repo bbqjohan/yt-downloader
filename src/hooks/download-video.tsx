@@ -1,5 +1,5 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { YtdlpFormatItem } from "./fetch-video-info";
 import {
   DownloadEvent,
@@ -14,6 +14,8 @@ interface DownloadParameters {
   audioFormat: YtdlpFormatItem;
   videoFormat: YtdlpFormatItem;
 }
+
+export class VideoDownloadItem extends DownloadItem<DownloadParameters> {}
 
 type DownloadEventStarted = DownloadEvent<"started", {}>;
 type DownloadEventProgress = DownloadEvent<
@@ -45,11 +47,12 @@ function isComplete(str: string): boolean {
   return str === "100%";
 }
 
-function createDownloadItem(data: DownloadParameters): DownloadItem {
+function createDownloadItem(data: DownloadParameters): VideoDownloadItem {
   return new DownloadItem({
     id: data.url,
     label: data.videoTitle,
-    items: [
+    params: data,
+    children: [
       new DownloadItem({
         id: "audio",
         label: "Audio",
@@ -64,99 +67,101 @@ function createDownloadItem(data: DownloadParameters): DownloadItem {
   });
 }
 
-interface Action {
-  id: string;
-  item: DownloadItem;
-  state: "downloading" | "finished";
-  channel: Channel<DownloadEvents>;
-  promise: Promise<unknown>;
-}
-
 export const useDownloadVideo = () => {
   const [downloadParams, setDownloadParams] = useState(
     new Map<string, { id: string; params: DownloadParameters }>()
   );
-  const [actions, setActions] = useState(new Map<string, Action>());
-  const isDownloading = useMemo(() => {
-    for (const [_, value] of actions) {
-      if (!value.item.done) {
-        return true;
-      }
-    }
-
-    return false;
-  }, [actions]);
+  const [items, setItems] = useState(new Map<string, VideoDownloadItem>());
+  const [queue, setQueue] = useState<VideoDownloadItem[]>([]);
 
   useEffect(() => {
-    const params = Array.from(downloadParams.values()).at(-1);
+    const _item = queue.at(0);
+    const _params = _item ? downloadParams.get(_item.id) : undefined;
 
-    if (
-      params &&
-      (!actions.has(params.id) ||
-        actions.get(params.id)?.state !== "downloading")
-    ) {
-      const item = createDownloadItem(params.params);
+    if (_item && _params) {
       const channel = new Channel<DownloadEvents>((message) => {
         if (message.event === "progress") {
           const output = message.data.output;
           const percentage = getPercentage(output);
           const speed = getSpeed(output);
+          let changed = false;
 
           if (typeof percentage === "string" && !isComplete(percentage)) {
             const progress = parseFloat(percentage);
 
-            item.updateProgress(progress);
-
-            setActions(
-              (prev) => new Map(prev.set(action.id, { ...action, item }))
-            );
+            _item.updateProgress(progress);
+            changed = true;
           }
 
-          if (typeof speed === "string") {
-            item.speed = speed;
-            setActions(
-              (prev) => new Map(prev.set(action.id, { ...action, item }))
-            );
+          if (speed) {
+            _item.speed = speed;
+            changed = true;
+          }
+
+          if (changed) {
+            setItems((prev) => {
+              return new Map(
+                prev.set(_item.id, new DownloadItem({ ..._item }))
+              );
+            });
+            console.log("ITEM:", _item.id, _item.progress, _item.speed);
           }
         } else if (message.event === "finished") {
-          setActions((prev) => {
-            return new Map(
-              prev.set(action.id, { ...action, state: "finished" })
-            );
+          _item.ongoing = false;
+          _item.speed = { rate: 0, size: "" };
+
+          setItems((prev) => {
+            return new Map(prev.set(_item.id, new DownloadItem({ ..._item })));
           });
+
+          console.log("ITEM DONE:", _item.id, _item.done, _item.progress);
         }
       });
 
-      const action: Action = {
-        id: params.id,
-        item,
-        channel,
-        state: "downloading",
-        promise: invoke<unknown>("download", {
-          url: params.params.url,
-          outputDir: params.params.outputDir,
-          audioFormat: params.params.audioFormat.format_id,
-          videoFormat: params.params.videoFormat.format_id,
-          onEvent: channel,
-        }),
-      };
+      invoke<unknown>("download", {
+        url: _params.params.url,
+        outputDir: _params.params.outputDir,
+        audioFormat: _params.params.audioFormat.format_id,
+        videoFormat: _params.params.videoFormat.format_id,
+        onEvent: channel,
+      });
 
-      setActions((prev) => new Map(prev.set(action.id, action)));
+      _item.ongoing = true;
+
+      const newQueue = [...queue];
+      newQueue.shift();
+
+      setQueue(newQueue);
+      setItems((prev) => {
+        return new Map(prev.set(_item.id, new DownloadItem({ ..._item })));
+      });
     }
-  }, [downloadParams]);
+
+    console.log("QUEUE:", queue);
+  }, [queue]);
 
   return {
     download: (data: DownloadParameters) => {
       setDownloadParams(
         (prev) => new Map(prev.set(data.url, { id: data.url, params: data }))
       );
+
+      const item = createDownloadItem(data);
+
+      setItems((prev) => {
+        return new Map(prev.set(item.id, item));
+      });
+
+      setQueue((prev) => {
+        return [...prev, item];
+      });
     },
 
     getParams: (itemId: string) => {
       return downloadParams.get(itemId);
     },
 
-    actions,
-    isDownloading,
+    items,
+    isDownloading: false,
   };
 };

@@ -8,45 +8,51 @@ export interface DownloadEvent<Name, Data> {
   data: Data;
 }
 
-export interface DownloadItemData {
+export interface DownloadItemData<T> {
   progress: number;
   speed: DownloadSpeed;
   size: string;
-  items: DownloadItem[];
+  children: DownloadItem<T>[];
   label: string;
   id: string;
+  ongoing: boolean;
+  params: T | undefined;
   readonly done: boolean;
 }
 
-export class DownloadItem implements DownloadItemData {
+export class DownloadItem<T> implements DownloadItemData<T> {
   progress = 0;
   speed: DownloadSpeed = { rate: 0, size: "" };
   size = "";
-  items: DownloadItem[] = [];
+  children: DownloadItem<T>[] = [];
   label = "";
   id = "";
+  ongoing = false;
+  params: T | undefined;
 
   get done(): boolean {
     return this.progress >= 100;
   }
 
-  get current(): DownloadItem {
-    return this.items.find((i) => !i.done) ?? this;
+  get current(): DownloadItem<T> {
+    return this.children.find((i) => !i.done) ?? this;
   }
 
-  constructor(args: Partial<DownloadItemData>) {
+  constructor(args: Partial<DownloadItemData<T>>) {
     for (const key of Object.keys(args)) {
       if (Object.hasOwn(this, key)) {
-        this[key as keyof this] = args[key as keyof DownloadItemData] as any;
+        this[key as keyof this] = args[key as keyof DownloadItemData<T>] as any;
       }
     }
+
+    this.params = args.params as T;
   }
 
   getProgress(): number {
-    return this.items.length > 0
+    return this.children.length > 0
       ? Math.floor(
-          (this.items.reduce((a, i) => a + i.getProgress(), 0) /
-            (this.items.length * 100)) *
+          (this.children.reduce((a, i) => a + i.getProgress(), 0) /
+            (this.children.length * 100)) *
             100
         )
       : this.progress;
@@ -57,55 +63,15 @@ export class DownloadItem implements DownloadItemData {
   }
 
   updateProgress(progress: number) {
-    if (this.items.length && !this.done) {
+    if (this.children.length && !this.done) {
       this.current.updateProgress(progress);
       this.setProgress(this.getProgress());
-    } else if (!this.items.length && !this.done) {
+    } else if (!this.children.length && !this.done) {
       this.setProgress(progress);
     }
   }
 
-  get(id: string): DownloadItem | undefined {
-    return this.id === id ? this : this.items.find((i) => i.get(id));
+  get(id: string): DownloadItem<T> | undefined {
+    return this.id === id ? this : this.children.find((i) => i.get(id));
   }
-}
-
-function recProgressUpdate(
-  progress: number,
-  items: DownloadItem[],
-  path: number[],
-  curItem: DownloadItem | undefined = undefined,
-  start: number = 0
-) {
-  const idx = path[start];
-  const next = idx === undefined ? undefined : items[idx];
-
-  if (next) {
-    recProgressUpdate(progress, next.items, path, next, start + 1);
-    next.setProgress(next.getProgress());
-  } else if (curItem) {
-    curItem.setProgress(progress);
-  }
-}
-
-function genQueue(queue: DownloadItem[]): number[] {
-  if (!queue.length) {
-    return [];
-  }
-
-  const path: number[] = [];
-
-  function inner(items: DownloadItem[]) {
-    for (let i = 0; i < items.length; i++) {
-      if (items[i] && !items[i].done) {
-        path.push(i);
-        inner(items[i].items);
-        break;
-      }
-    }
-  }
-
-  inner(queue);
-
-  return path;
 }

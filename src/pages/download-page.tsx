@@ -1,6 +1,7 @@
 import {
   Button,
   ButtonProps,
+  Checkbox,
   Divider,
   Input,
   InputProps,
@@ -10,10 +11,9 @@ import {
   SelectItem,
 } from "@heroui/react";
 import { OneColumnLayout } from "../layouts/one-column";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { useFetchVideoInfo, YtdlpFormatItem } from "../hooks/fetch-video-info";
-import { useDownloadVideo } from "../hooks/download-video";
-import { DownloadItem } from "../lib/download-engine";
+import { useDownloadVideo, VideoDownloadItem } from "../hooks/download-video";
 import { open } from "@tauri-apps/plugin-dialog";
 
 export function DownloadPage() {
@@ -28,15 +28,8 @@ export function DownloadPage() {
   const [selectedVideoFormat, setSelectedVideoFormat] = useState<Selection>(
     new Set([])
   );
-  const items = useMemo(() => {
-    let items = [];
-
-    for (const [_, action] of downloader.actions) {
-      items.push(action.item);
-    }
-
-    return items;
-  }, [downloader.actions]);
+  const [preferWorstAudio, setPreferWorstAudio] = useState(true);
+  const [preferWorstVideo, setPreferWorstVideo] = useState(true);
 
   const [outputDir, setOutputDir] = useState(window.defaultOutputDir);
 
@@ -46,32 +39,33 @@ export function DownloadPage() {
 
   const handleDownload = () => {
     if (
-      selectedAudioFormat instanceof Set &&
-      selectedAudioFormat.size === 1 &&
-      selectedVideoFormat instanceof Set &&
-      selectedVideoFormat.size === 1
+      (selectedAudioFormat instanceof Set &&
+        selectedAudioFormat.size === 1 &&
+        selectedVideoFormat instanceof Set &&
+        selectedVideoFormat.size === 1) ||
+      true
     ) {
-      const audioId = selectedAudioFormat.values().next().value;
-      const videoId = selectedVideoFormat.values().next().value;
+      // const audioId = selectedAudioFormat.values().next().value;
+      // const videoId = selectedVideoFormat.values().next().value;
 
-      if (typeof audioId !== "string") {
-        throw Error("Audio format not selected");
-      }
+      // if (typeof audioId !== "string") {
+      //   throw Error("Audio format not selected");
+      // }
 
-      if (typeof videoId !== "string") {
-        throw Error("Video format not selected");
-      }
+      // if (typeof videoId !== "string") {
+      //   throw Error("Video format not selected");
+      // }
 
-      const audioFormat = audioFormats.find((f) => f.id === audioId);
-      const videoFormat = videoFormats.find((f) => f.id === videoId);
+      // const audioFormat = audioFormats.find((f) => f.id === audioId);
+      // const videoFormat = videoFormats.find((f) => f.id === videoId);
 
-      if (audioFormat === undefined) {
-        throw Error("Could not find audio format info for: " + audioId);
-      }
+      // if (audioFormat === undefined) {
+      //   throw Error("Could not find audio format info for: " + audioId);
+      // }
 
-      if (videoFormat === undefined) {
-        throw Error("Could not find video format info for: " + videoId);
-      }
+      // if (videoFormat === undefined) {
+      //   throw Error("Could not find video format info for: " + videoId);
+      // }
 
       if (!videoTitle) {
         throw Error("Video title is not set");
@@ -81,25 +75,43 @@ export function DownloadPage() {
         throw Error("Output directory is not set");
       }
 
-      downloader.download({
-        url,
-        videoTitle,
-        audioFormat,
-        videoFormat,
-        outputDir,
-      });
+      if (preferWorstAudio && preferWorstVideo) {
+        const af = audioFormats.at(0);
+        const vf = videoFormats.at(0);
+
+        if (af) {
+          af.format_id = "wa";
+        }
+
+        if (preferWorstVideo) {
+          if (vf) {
+            vf.format_id = "wv";
+          }
+        }
+
+        if (af && vf) {
+          downloader.download({
+            url,
+            videoTitle,
+            audioFormat: af,
+            videoFormat: vf,
+            outputDir,
+          });
+        }
+      }
     }
   };
 
-  const onRedownload = useCallback((itemId: string) => {
-    const params = downloader.getParams(itemId);
+  const onRedownload = useCallback(
+    (itemId: string) => {
+      const item = downloader.items.get(itemId);
 
-    console.log(itemId, params);
-
-    if (params) {
-      downloader.download(params.params);
-    }
-  }, []);
+      if (item && item.params) {
+        downloader.download(item.params);
+      }
+    },
+    [downloader.items]
+  );
 
   return (
     <OneColumnLayout>
@@ -121,6 +133,10 @@ export function DownloadPage() {
         onOutputChange={setOutputDir}
         setSelectedAudioFormat={setSelectedAudioFormat}
         setSelectedVideoFormat={setSelectedVideoFormat}
+        preferWorstAudio={preferWorstAudio}
+        preferWorstVideo={preferWorstVideo}
+        onPreferWorstAudio={setPreferWorstAudio}
+        onPreferWorstVideo={setPreferWorstVideo}
       />
       <Divider className="my-6" />
       <div className="flex flex-col gap-4">
@@ -132,7 +148,10 @@ export function DownloadPage() {
         >
           Download
         </Button>
-        <ProgressList items={items} onRedownload={onRedownload}></ProgressList>
+        <ProgressList
+          items={Array.from(downloader.items.values())}
+          onRedownload={onRedownload}
+        ></ProgressList>
       </div>
     </OneColumnLayout>
   );
@@ -142,7 +161,7 @@ const ProgressList = ({
   items,
   onRedownload,
 }: {
-  items: DownloadItem[];
+  items: VideoDownloadItem[];
   onRedownload: (itemId: string) => void;
 }) => {
   return (
@@ -222,6 +241,10 @@ interface DownloadOptionsProps {
   setSelectedAudioFormat: React.Dispatch<React.SetStateAction<Selection>>;
   setSelectedVideoFormat: React.Dispatch<React.SetStateAction<Selection>>;
   onOutputChange: React.Dispatch<React.SetStateAction<string>>;
+  preferWorstAudio: boolean;
+  preferWorstVideo: boolean;
+  onPreferWorstAudio: React.Dispatch<React.SetStateAction<boolean>>;
+  onPreferWorstVideo: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 function makeFormatLabel(item: YtdlpFormatItem): string {
@@ -241,6 +264,10 @@ const DownloadOptions = ({
   setSelectedAudioFormat,
   setSelectedVideoFormat,
   onOutputChange,
+  preferWorstAudio,
+  preferWorstVideo,
+  onPreferWorstAudio,
+  onPreferWorstVideo,
 }: DownloadOptionsProps) => {
   async function handleOutputDir() {
     const path = await open({
@@ -271,6 +298,20 @@ const DownloadOptions = ({
         onClick={handleOutputDir}
         onKeyDown={onOutputDirKeyDown}
       />
+      <Checkbox
+        value="wa"
+        onValueChange={onPreferWorstAudio}
+        isSelected={preferWorstAudio}
+      >
+        Prefer worst audio quality
+      </Checkbox>
+      <Checkbox
+        value="wv"
+        onValueChange={onPreferWorstVideo}
+        isSelected={preferWorstVideo}
+      >
+        Prefer worst video quality
+      </Checkbox>
       <Select
         label="Audio"
         placeholder="Select format"
@@ -298,26 +339,3 @@ const DownloadOptions = ({
     </div>
   );
 };
-
-// ===============================================================
-// ===============================================================
-// ===============================================================
-// ===============================================================
-
-// interface ProgressBarProps {
-//   progress: number;
-//   genLabel: () => string;
-// }
-
-// const ProgressBar = ({ progress, genLabel }: ProgressBarProps) => {
-//   return (
-//     <Progress
-//       aria-label={"Download progress bar"}
-//       color={"success"}
-//       label={genLabel()}
-//       showValueLabel={true}
-//       size="md"
-//       value={progress}
-//     />
-//   );
-// };
