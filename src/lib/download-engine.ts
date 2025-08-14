@@ -8,7 +8,7 @@ export interface DownloadEvent<Name, Data> {
   data: Data;
 }
 
-export interface DownloadItemData<T> {
+export interface DownloadItemData<T, E> {
   progress: number;
   speed: DownloadSpeed;
   size: string;
@@ -17,10 +17,11 @@ export interface DownloadItemData<T> {
   id: string;
   ongoing: boolean;
   params: T | undefined;
+  error: E | undefined;
   readonly done: boolean;
 }
 
-export class DownloadItem<T> implements DownloadItemData<T> {
+export class DownloadItem<T, E = unknown> implements DownloadItemData<T, E> {
   progress = 0;
   speed: DownloadSpeed = { rate: 0, size: "" };
   size = "";
@@ -29,6 +30,7 @@ export class DownloadItem<T> implements DownloadItemData<T> {
   id = "";
   ongoing = false;
   params: T | undefined;
+  error: E | undefined;
 
   get done(): boolean {
     return this.progress >= 100;
@@ -38,10 +40,12 @@ export class DownloadItem<T> implements DownloadItemData<T> {
     return this.children.find((i) => !i.done) ?? this;
   }
 
-  constructor(args: Partial<DownloadItemData<T>>) {
+  constructor(args: Partial<DownloadItemData<T, E>>) {
     for (const key of Object.keys(args)) {
       if (Object.hasOwn(this, key)) {
-        this[key as keyof this] = args[key as keyof DownloadItemData<T>] as any;
+        this[key as keyof this] = args[
+          key as keyof DownloadItemData<T, E>
+        ] as any;
       }
     }
 

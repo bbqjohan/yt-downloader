@@ -15,6 +15,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useFetchVideoInfo, YtdlpFormatItem } from "../hooks/fetch-video-info";
 import { useDownloadVideo, VideoDownloadItem } from "../hooks/download-video";
 import { open } from "@tauri-apps/plugin-dialog";
+import clsx from "clsx";
 
 export function DownloadPage() {
   const [url, setUrl] = useState("https://www.youtube.com/watch?v=Dl2vf04UCAM");
@@ -151,17 +152,10 @@ export function DownloadPage() {
         onPreferWorstVideo={setPreferWorstVideo}
         onVideoTitle={setCustomVideoTitle}
         onUseDefaultVideoTitle={resetVideoTitle}
+        onDownload={handleDownload}
       />
-      <Divider className="my-6" />
       <div className="flex flex-col gap-4">
-        <Button
-          color="primary"
-          className="self-start"
-          onPress={handleDownload}
-          isDisabled={downloader.isDownloading || fetching}
-        >
-          Download
-        </Button>
+        <Divider className="my-6" />
         <ProgressList
           items={Array.from(downloader.items.values())}
           onRedownload={onRedownload}
@@ -182,7 +176,12 @@ const ProgressList = ({
     <div className="flex flex-col gap-4">
       {items.map((item) => {
         return (
-          <div className="flex flex-col gap-4" key={item.id}>
+          <div className={clsx("flex flex-col gap-4")} key={item.id}>
+            {typeof item.error === "string" ? (
+              <div className="text-white bg-red-500 py-2 px-3 rounded">
+                {item.error}
+              </div>
+            ) : null}
             <Progress
               aria-label={"Download progress bar"}
               color={"success"}
@@ -201,6 +200,7 @@ const ProgressList = ({
                 Re-Download
               </Button>
             </div>
+            <Divider />
           </div>
         );
       })}
@@ -261,6 +261,7 @@ interface DownloadOptionsProps {
   onPreferWorstVideo: React.Dispatch<React.SetStateAction<boolean>>;
   onVideoTitle: React.Dispatch<React.SetStateAction<string>>;
   onUseDefaultVideoTitle: () => void;
+  onDownload: () => void;
 }
 
 function makeFormatLabel(item: YtdlpFormatItem): string {
@@ -286,6 +287,7 @@ const DownloadOptions = ({
   onPreferWorstVideo,
   onVideoTitle,
   onUseDefaultVideoTitle,
+  onDownload,
 }: DownloadOptionsProps) => {
   async function handleOutputDir() {
     const path = await open({
@@ -363,6 +365,14 @@ const DownloadOptions = ({
           return <SelectItem>{makeFormatLabel(item)}</SelectItem>;
         }}
       </Select>
+      <Button
+        color="primary"
+        className="self-start"
+        onPress={onDownload}
+        isDisabled={isDisabled}
+      >
+        Download
+      </Button>
     </div>
   );
 };

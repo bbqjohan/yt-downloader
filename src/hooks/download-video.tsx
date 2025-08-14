@@ -25,11 +25,18 @@ type DownloadEventProgress = DownloadEvent<
   }
 >;
 type DownloadEventFinished = DownloadEvent<"finished", {}>;
+type DownloadEventAlreadyDownloaded = DownloadEvent<
+  "alreadyDownloaded",
+  {
+    downloadId: string;
+  }
+>;
 
 type DownloadEvents =
   | DownloadEventStarted
   | DownloadEventProgress
-  | DownloadEventFinished;
+  | DownloadEventFinished
+  | DownloadEventAlreadyDownloaded;
 
 function getPercentage(str: string): string | undefined {
   const result = /\d+(?:\.\d)*\%/.exec(str);
@@ -49,7 +56,7 @@ function isComplete(str: string): boolean {
 
 function createDownloadItem(data: DownloadParameters): VideoDownloadItem {
   return new DownloadItem({
-    id: data.url,
+    id: crypto.randomUUID(),
     label: data.videoTitle,
     params: data,
     children: [
@@ -80,11 +87,14 @@ export const useDownloadVideo = () => {
 
     if (_item && _params) {
       const channel = new Channel<DownloadEvents>((message) => {
+        let changed = false;
+
         if (message.event === "progress") {
+          console.log("progress:", message.data.output);
+
           const output = message.data.output;
           const percentage = getPercentage(output);
           const speed = getSpeed(output);
-          let changed = false;
 
           if (typeof percentage === "string" && !isComplete(percentage)) {
             const progress = parseFloat(percentage);
@@ -97,28 +107,25 @@ export const useDownloadVideo = () => {
             _item.speed = speed;
             changed = true;
           }
-
-          if (changed) {
-            setItems((prev) => {
-              return new Map(
-                prev.set(_item.id, new DownloadItem({ ..._item }))
-              );
-            });
-            console.log("ITEM:", _item.id, _item.progress, _item.speed);
-          }
         } else if (message.event === "finished") {
           _item.ongoing = false;
           _item.speed = { rate: 0, size: "" };
+          changed = true;
+        } else if (message.event === "alreadyDownloaded") {
+          _item.error =
+            "Error: A file with this title and file extension has already been downloaded.";
+          changed = true;
+        }
 
+        if (changed) {
           setItems((prev) => {
             return new Map(prev.set(_item.id, new DownloadItem({ ..._item })));
           });
-
-          console.log("ITEM DONE:", _item.id, _item.done, _item.progress);
         }
       });
 
       invoke<unknown>("download", {
+        downloadId: _item.id,
         url: _params.params.url,
         outputDir: _params.params.outputDir,
         audioFormat: _params.params.audioFormat.format_id,
@@ -143,11 +150,11 @@ export const useDownloadVideo = () => {
 
   return {
     download: (data: DownloadParameters) => {
-      setDownloadParams(
-        (prev) => new Map(prev.set(data.url, { id: data.url, params: data }))
-      );
-
       const item = createDownloadItem(data);
+
+      setDownloadParams(
+        (prev) => new Map(prev.set(item.id, { id: item.id, params: data }))
+      );
 
       setItems((prev) => {
         return new Map(prev.set(item.id, item));

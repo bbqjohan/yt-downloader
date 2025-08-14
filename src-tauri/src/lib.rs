@@ -47,10 +47,14 @@ enum DownloadEvent {
     Finished {
         // download_id: usize,
     },
+    AlreadyDownloaded {
+        download_id: String,
+    },
 }
 
 #[tauri::command]
 async fn download(
+    download_id: &str,
     url: &str,
     audio_format: &str,
     video_format: &str,
@@ -61,7 +65,6 @@ async fn download(
     // let output = Command::new("yt-dlp").arg(format!("-F {}", url)).output();
     let mut cmd = Command::new("yt-dlp")
         .arg(format!("-f {}+{}", audio_format, video_format))
-        .arg("--force-overwrites")
         .arg("-o")
         .arg(format!("{}\\{}.%(ext)s", output_dir, video_title))
         .arg(url)
@@ -83,15 +86,28 @@ async fn download(
         // Every line that displays download progress in output includes \r instead of \n. By
         // splitting them we can parse out the progress %, download speed and file size.
         let stdout_lines = stdout_reader.split(b'\r');
+        let mut last_line: String = String::from("");
 
         for line in stdout_lines {
             let str = String::from_utf8(line.unwrap()).unwrap();
 
             println!("{:?}", str);
 
+            last_line = str.to_owned();
+
             on_event
                 .send(DownloadEvent::Progress { output: str })
                 .unwrap();
+        }
+
+        if !last_line.is_empty() {
+            if is_already_downloaded(&last_line, output_dir) {
+                on_event
+                    .send(DownloadEvent::AlreadyDownloaded {
+                        download_id: download_id.to_string(),
+                    })
+                    .unwrap();
+            }
         }
 
         on_event.send(DownloadEvent::Finished {}).unwrap();
@@ -100,9 +116,24 @@ async fn download(
     Ok(())
 }
 
+fn is_format_unavailable(str: &str) -> bool {
+    return str.contains("ERROR: [youtube]")
+        && str.contains(
+            "Requested format is not available. Use --list-formats for a list of available formats",
+        );
+}
+
+fn is_already_downloaded(str: &str, output_dir: &str) -> bool {
+    return match str.split("\n[download]").find(|s| s.contains(output_dir)) {
+        Some(_) => true,
+        None => false,
+    };
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![greet, fetch_data, download])
