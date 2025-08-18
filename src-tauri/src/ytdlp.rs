@@ -28,6 +28,8 @@ pub struct YtdlpResponse {
     title: String,
     audio: Vec<YtdlpFormat>,
     video: Vec<YtdlpFormat>,
+    thumbnail: String,
+    channel: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -102,6 +104,18 @@ pub fn read() -> Option<YtdlpResponse> {
         .to_owned();
 
     let id = test_output.get("id").unwrap().as_str().unwrap().to_owned();
+    let thumbnail = test_output
+        .get("thumbnail")
+        .unwrap()
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let channel = test_output
+        .get("channel")
+        .unwrap()
+        .as_str()
+        .unwrap()
+        .to_owned();
 
     let mut audio_only: Vec<YtdlpFormat> = vec![];
     let mut video_only: Vec<YtdlpFormat> = vec![];
@@ -119,13 +133,13 @@ pub fn read() -> Option<YtdlpResponse> {
     }
 
     let resp = YtdlpResponse {
-        id: id,
-        title: title,
+        id,
+        title,
         audio: audio_only,
         video: video_only,
+        thumbnail,
+        channel,
     };
-
-    // println!("{:#?}", resp);
 
     Some(resp)
 }

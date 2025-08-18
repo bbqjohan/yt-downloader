@@ -8,6 +8,8 @@ export interface YtdlpResponse {
   title: string;
   audio: YtdlpFormat[];
   video: YtdlpFormat[];
+  thumbnail: string;
+  channel: string;
 }
 
 export interface YtdlpFormat {
@@ -33,6 +35,8 @@ export interface VideoInfo {
   audioFormats: YtdlpFormatItem[];
   videoFormats: YtdlpFormatItem[];
   videoTitle: string;
+  thumbnail: string;
+  channel: string;
 }
 
 export const useFetchVideoInfo = (url: string) => {
@@ -66,7 +70,13 @@ export const useFetchVideoInfo = (url: string) => {
 
             const videoTitle = response.title;
 
-            setVideoInfo({ audioFormats, videoFormats, videoTitle });
+            setVideoInfo({
+              audioFormats,
+              videoFormats,
+              videoTitle,
+              thumbnail: response.thumbnail,
+              channel: response.channel,
+            });
           }
         })
         .catch((error) => {

@@ -128,12 +128,34 @@ export function DownloadPage() {
 
   return (
     <OneColumnLayout>
-      <UrlInput
-        url={url}
-        onUrlChange={setUrl}
-        onFetch={handleFetch}
-        isDisabled={downloader.isDownloading || fetching}
-      />
+      <div className="flex flex-col gap-4">
+        <UrlInput
+          url={url}
+          onUrlChange={setUrl}
+          onFetch={handleFetch}
+          isDisabled={downloader.isDownloading || fetching}
+        />
+        {videoInfo && (
+          <div className="flex flex-col bg-zinc-300 p-2 rounded gap-4">
+            <div className=" flex gap-4 shrink-0">
+              <div className="shrink-0 w-[150px]">
+                <img src={videoInfo?.thumbnail} />
+              </div>
+              <div className="flex flex-col gap-4 overflow-hidden">
+                <code
+                  className="text-ellipsis whitespace-nowrap overflow-hidden"
+                  title={videoInfo?.channel}
+                >
+                  {videoInfo?.channel}
+                </code>
+              </div>
+            </div>
+            <div>
+              <p title={videoInfo?.videoTitle}>{videoInfo?.videoTitle}</p>
+            </div>
+          </div>
+        )}
+      </div>
       <Divider className="my-6" />
       <DownloadOptions
         videoTitle={customVideoTitle}
