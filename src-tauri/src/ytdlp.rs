@@ -148,3 +148,92 @@ pub fn download(// audio_format: &str,
 
     cmd
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+struct VideoInfo {
+    id: String,
+    title: String,
+    formats: Vec<YtdlpFormat>,
+}
+
+impl TryFrom<&serde_json::Value> for VideoInfo {
+    type Error = anyhow::Error;
+
+    fn try_from(info: &Value) -> anyhow::Result<Self> {
+        // Using {.as_str.to_owned()} to remove lingering \" escapes in
+        // property values that would otherwise be there with a {.to_string()}.
+
+        let mut formats: Vec<anyhow::Result<AudioOnly_YtdlpFormat>> = info["formats"]
+            .as_array()
+            .ok_or(anyhow::anyhow!("Missing formats"))?
+            .iter()
+            .map(AudioOnly_YtdlpFormat::try_from)
+            .collect();
+
+        Ok(Self {
+            id: info["id"]
+                .as_str()
+                .ok_or(anyhow::anyhow!("Missing id"))?
+                .to_owned(),
+            title: info["title"]
+                .as_str()
+                .ok_or(anyhow::anyhow!("Missing title"))?
+                .to_owned(),
+            formats: info["formats"]
+                .as_array()
+                .ok_or(anyhow::anyhow!("Missing formats"))?
+                .iter()
+                .map(YtdlpFormat::try_from)
+                .collect::<anyhow::Result<Vec<_>>>()?,
+        })
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct AudioOnly_YtdlpFormat {
+    audio_ext: String,
+    format_id: String,
+    abr: Option<f64>,
+    resolution: String,
+}
+
+impl TryFrom<&serde_json::Value> for AudioOnly_YtdlpFormat {
+    type Error = anyhow::Error;
+
+    fn try_from(format: &Value) -> anyhow::Result<Self> {
+        // Using {.as_str.to_owned()} to remove lingering \" escapes in
+        // property values that would otherwise be there with a {.to_string()}.
+
+        Ok(Self {
+            abr: format["abr"].as_f64(),
+            audio_ext: format["audio_ext"]
+                .as_str()
+                .ok_or(anyhow::anyhow!("Missing audio_ext"))?
+                .to_owned(),
+            format_id: format["format_id"]
+                .as_str()
+                .ok_or(anyhow::anyhow!("Missing format_id"))?
+                .to_owned(),
+            resolution: format["resolution"]
+                .as_str()
+                .ok_or(anyhow::anyhow!("Missing resolution"))?
+                .to_owned(),
+        })
+    }
+}
+
+/// Fetch video info in JSON format using yt-dlp
+///
+/// # Arguments
+/// * `url` - The URL of the video to fetch information for
+///
+/// # Returns
+/// A `Result` containing the video information as JSON or an error
+pub fn fetch_video_info(url: &str) -> Result<VideoInfo, Error> {
+    let output = Command::new("yt-dlp").arg("-F -j").arg(url).output();
+
+    let json: serde_json::Value = serde_json::from_slice(&output?.stdout)?;
+    let video_info = serde_json::from_value(json.clone())?;
+
+    Ok(video_info)
+}
