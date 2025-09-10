@@ -14,12 +14,23 @@ export function DownloadPage() {
 
   return (
     <OneColumnLayout>
-      <UrlInput
-        url={url}
-        onUrlChange={setUrl}
-        onDownload={handleDownload}
-        isDisabled={downloadVideo.downloadItem?.ongoing || false}
-      />
+      <div className="flex flex-col gap-4">
+        <UrlInput
+          url={url}
+          onUrlChange={setUrl}
+          onDownload={handleDownload}
+          isDisabled={downloadVideo.downloadItem?.ongoing || false}
+        />
+        {downloadVideo.downloadItem && (
+          <div className="text-black">
+            {downloadVideo.downloadItem.finished
+              ? "Download finished!"
+              : `Downloading... ${
+                  downloadVideo.downloadItem.progressString || "0%"
+                }`}
+          </div>
+        )}
+      </div>
     </OneColumnLayout>
   );
 }
