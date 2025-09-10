@@ -1,0 +1,20 @@
+{
+    "status": "downloading",
+    "downloaded_bytes": 1047552,
+    "total_bytes": 46853198,
+    "tmpfilename": "Is Rouge the Bat a Latina\uff1f (A Lawyer Overanalyzes) [Dl2vf04UCAM].webm.part",
+    "filename": "Is Rouge the Bat a Latina\uff1f (A Lawyer Overanalyzes) [Dl2vf04UCAM].webm",
+    "eta": 22,
+    "speed": 2059091.65388433,
+    "elapsed": 0.620694637298584,
+    "ctx_id": null,
+    "_eta_str": "\u001b[0;33m00:22\u001b[0m",
+    "_speed_str": "\u001b[0;32m   1.96MiB/s\u001b[0m",
+    "_percent": 2.235817499586688,
+    "_percent_str": "\u001b[0;94m  2.2%\u001b[0m",
+    "_total_bytes_str": "  44.68MiB",
+    "_total_bytes_estimate_str": "       N/A",
+    "_downloaded_bytes_str": "\u001b[0;94m1023.00KiB\u001b[0m",
+    "_elapsed_str": "\u001b[1;37m00:00:00\u001b[0m",
+    "_default_template": "\u001b[0;94m  2.2%\u001b[0m of   44.68MiB at \u001b[0;32m   1.96MiB/s\u001b[0m ETA \u001b[0;33m00:22\u001b[0m"
+}

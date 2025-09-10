@@ -16,7 +16,7 @@ use tauri::ipc::Channel;
 )]
 pub enum DownloadEvent {
     Started {},
-    Progress {},
+    Progress { progress: f64 },
     Finished {},
 }
 
@@ -29,10 +29,15 @@ pub enum DownloadEvent {
 pub async fn download(url: &str, on_event: Channel<DownloadEvent>) -> Result<(), ()> {
     // let output = Command::new("yt-dlp").arg(format!("-F {}", url)).output();
     let mut cmd = Command::new("yt-dlp")
+        // .arg(format!("--progress-delta {}", 1))
         .arg("-f ba[protocol^=http]")
         .arg("--force-overwrites")
+        .arg("--progress-template")
+        .arg("%(progress._percent)s|%(progress._total_bytes_str)s|%(progress._speed_str)s|%(progress._eta_str)s")
+        .arg("--progress-delta")
+        .arg("1")
         .arg("-o")
-        .arg(".\\test-downloads\\%(title)s.%(ext)s")
+        .arg("..\\test-downloads\\%(title)s.%(ext)s")
         .arg("https://www.youtube.com/watch?v=Dl2vf04UCAM")
         .stdout(Stdio::piped())
         // .stderr(Stdio::piped())
@@ -50,9 +55,18 @@ pub async fn download(url: &str, on_event: Channel<DownloadEvent>) -> Result<(),
         let stdout_lines = stdout_reader.split(b'\r');
 
         for line in stdout_lines {
-            let str = String::from_utf8(line.unwrap()).unwrap();
+            let line_str = String::from_utf8(line.unwrap()).unwrap();
+            let splits: Vec<&str> = line_str.split('|').collect();
+            let progress = splits.get(0).unwrap_or(&"").to_string();
+            let progress: f64 = progress.trim().parse().unwrap_or(-1.0);
 
-            println!("{:?}", str);
+            if (!(progress == -1.0)) {
+                on_event
+                    .send(DownloadEvent::Progress { progress: progress })
+                    .unwrap();
+            }
+
+            println!("{:?}", line_str);
         }
 
         on_event.send(DownloadEvent::Finished {}).unwrap();

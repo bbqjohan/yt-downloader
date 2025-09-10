@@ -15,16 +15,44 @@ interface DownloadParameters {
 export class VideoDownloadItem {
   url: string;
   ongoing: boolean;
+  progress: number;
 
-  constructor({ url, ongoing = false }: { url: string; ongoing?: boolean }) {
+  constructor({
+    url,
+    ongoing = false,
+    progress = 0,
+  }: {
+    url: string;
+    ongoing?: boolean;
+    progress?: number;
+  }) {
     this.url = url;
     this.ongoing = ongoing;
+    this.progress = progress;
+  }
+
+  get progressString(): string {
+    const floored = Math.floor(this.progress * 10) / 10;
+    return `  ${floored}%`;
+  }
+
+  get finished(): boolean {
+    return this.progress >= 100;
   }
 }
 
 type DownloadEventStarted = DownloadEvent<"started", {}>;
 type DownloadEventFinished = DownloadEvent<"finished", {}>;
-type DownloadEvents = DownloadEventStarted | DownloadEventFinished;
+type DownloadEventProgress = DownloadEvent<
+  "progress",
+  {
+    progress: number;
+  }
+>;
+type DownloadEvents =
+  | DownloadEventStarted
+  | DownloadEventFinished
+  | DownloadEventProgress;
 
 /**
  * Custom hook to manage video downloads.
@@ -37,13 +65,37 @@ export const useDownloadVideo = () => {
   );
 
   useEffect(() => {
-    if (downloadItem instanceof VideoDownloadItem && !downloadItem.ongoing) {
+    if (
+      downloadItem instanceof VideoDownloadItem &&
+      !downloadItem.ongoing &&
+      !downloadItem.finished
+    ) {
       const channel = new Channel<DownloadEvents>((message) => {
-        if (message.event === "started") {
+        if (message.event === "progress") {
+          setDownloadItem((item) => {
+            if (item instanceof VideoDownloadItem) {
+              return new VideoDownloadItem({
+                ...item,
+                progress: message.data.progress,
+              });
+            }
+
+            return item;
+          });
+        } else if (message.event === "started") {
           console.log("ITEM STARTED");
         } else if (message.event === "finished") {
           console.log("ITEM FINISHED");
-          setDownloadItem(null);
+          setDownloadItem((item) => {
+            if (item instanceof VideoDownloadItem) {
+              return new VideoDownloadItem({
+                ...item,
+                ongoing: false,
+              });
+            }
+
+            return item;
+          });
         }
       });
 
