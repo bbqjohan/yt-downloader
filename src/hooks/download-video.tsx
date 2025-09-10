@@ -3,31 +3,52 @@ import { useEffect, useState } from "react";
 import { DownloadEvent } from "../lib/download-engine";
 
 /**
+ * Interface for the download invocation parameters.
+ */
+interface DownloadInvokeParams {
+  url: string;
+  worstAudio: boolean;
+  onEvent: Channel<DownloadEvents>;
+}
+
+/**
  * Parameters required to start a video download.
  */
-interface DownloadParameters {
+export class DownloadParameters {
   url: string;
+  worstAudio: boolean;
+
+  constructor({
+    url,
+    worstAudio = false,
+  }: {
+    url: string;
+    worstAudio?: boolean;
+  }) {
+    this.url = url;
+    this.worstAudio = worstAudio;
+  }
 }
 
 /**
  * Represents a video download item with its URL and ongoing status.
  */
 export class VideoDownloadItem {
-  url: string;
-  ongoing: boolean;
+  parameters: DownloadParameters;
+  status: "started" | "finished" | "progress" | "";
   progress: number;
 
   constructor({
-    url,
-    ongoing = false,
+    parameters,
+    status = "",
     progress = 0,
   }: {
-    url: string;
-    ongoing?: boolean;
+    parameters: DownloadParameters;
+    status?: "started" | "finished" | "progress" | "";
     progress?: number;
   }) {
-    this.url = url;
-    this.ongoing = ongoing;
+    this.parameters = parameters;
+    this.status = status;
     this.progress = progress;
   }
 
@@ -36,8 +57,16 @@ export class VideoDownloadItem {
     return `  ${floored}%`;
   }
 
-  get finished(): boolean {
+  get isFinished(): boolean {
     return this.progress >= 100;
+  }
+
+  get isStarted(): boolean {
+    return this.status === "started";
+  }
+
+  get isNew(): boolean {
+    return this.status === "";
   }
 }
 
@@ -65,11 +94,7 @@ export const useDownloadVideo = () => {
   );
 
   useEffect(() => {
-    if (
-      downloadItem instanceof VideoDownloadItem &&
-      !downloadItem.ongoing &&
-      !downloadItem.finished
-    ) {
+    if (downloadItem instanceof VideoDownloadItem && downloadItem.isNew) {
       const channel = new Channel<DownloadEvents>((message) => {
         if (message.event === "progress") {
           setDownloadItem((item) => {
@@ -90,7 +115,7 @@ export const useDownloadVideo = () => {
             if (item instanceof VideoDownloadItem) {
               return new VideoDownloadItem({
                 ...item,
-                ongoing: false,
+                status: "finished",
               });
             }
 
@@ -99,23 +124,23 @@ export const useDownloadVideo = () => {
         }
       });
 
-      invoke<unknown>("download", {
-        url: downloadItem.url,
+      invoke<DownloadInvokeParams>("download", {
+        url: downloadItem.parameters.url,
+        worstAudio: downloadItem.parameters.worstAudio,
         onEvent: channel,
       });
 
       setDownloadItem(
-        new VideoDownloadItem({ ...downloadItem, ongoing: true })
+        new VideoDownloadItem({ ...downloadItem, status: "started" })
       );
     }
   }, [downloadItem]);
 
   return {
-    startDownload: (data: DownloadParameters) => {
+    startDownload: (parameters: DownloadParameters) => {
       setDownloadItem(
         new VideoDownloadItem({
-          url: data.url,
-          ongoing: false,
+          parameters,
         })
       );
     },
