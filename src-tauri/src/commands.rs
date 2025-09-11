@@ -86,6 +86,7 @@ impl Download {
 pub async fn download(
     url: &str,
     worst_audio: bool,
+    output_path: &str,
     on_event: Channel<DownloadEvent>,
 ) -> Result<(), ()> {
     let mut cmd = Command::new("yt-dlp")
@@ -97,7 +98,7 @@ pub async fn download(
         .arg("--progress-delta")
         .arg("1")
         .arg("-o")
-        .arg("..\\test-downloads\\%(title)s.%(ext)s")
+        .arg(format!("{}\\%(title)s.%(ext)s", output_path))
         .arg("https://www.youtube.com/watch?v=Dl2vf04UCAM")
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
