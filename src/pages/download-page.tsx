@@ -10,6 +10,7 @@ import {
 } from "@heroui/react";
 import { OneColumnLayout } from "../layouts/one-column";
 import { useState } from "react";
+import { Key } from "@react-types/shared";
 
 import { useDownloadVideo } from "../hooks/download-video";
 
@@ -105,14 +106,22 @@ interface AudioSettingsTabProps {
 const AudioSettings = ({
   worstAudio,
   setWorstAudio,
-}: AudioSettingsTabProps) => (
-  <Tabs>
-    <Tab key="audio" title="Audio settings">
-      <div>
-        <Checkbox isSelected={worstAudio} onValueChange={setWorstAudio}>
-          Worst quality
-        </Checkbox>
-      </div>
-    </Tab>
-  </Tabs>
-);
+}: AudioSettingsTabProps) => {
+  const [selectedTab, setSelectedTab] = useState<Key>("");
+
+  return (
+    <Tabs
+      variant="underlined"
+      selectedKey={selectedTab}
+      onSelectionChange={setSelectedTab}
+    >
+      <Tab key="audio" title="Audio settings">
+        <div>
+          <Checkbox isSelected={worstAudio} onValueChange={setWorstAudio}>
+            Worst quality
+          </Checkbox>
+        </div>
+      </Tab>
+    </Tabs>
+  );
+};
