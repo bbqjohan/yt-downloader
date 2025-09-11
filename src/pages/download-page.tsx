@@ -23,7 +23,12 @@ export function DownloadPage() {
   const downloadVideo = useDownloadVideo();
 
   const handleDownload = () => {
-    downloadVideo.startDownload({ url, worstAudio, outputPath });
+    downloadVideo.startDownload({
+      url,
+      worstAudio,
+      outputPath,
+      videoResolution: defaults.videoResolution,
+    });
   };
 
   return (

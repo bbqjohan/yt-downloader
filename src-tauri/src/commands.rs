@@ -67,13 +67,27 @@ impl Download {
     /// preferences.
     ///
     /// - If `worst_audio` is `Some(true)`, the function returns the format string for the worst
-    ///   available audio quality that uses the HTTP protocol.
+    ///   available audio quality.
     fn get_audio_format_arg(worst_audio: Option<&bool>) -> String {
         if (worst_audio.is_some_and(|x| x == &true)) {
-            return "wa[protocol^=http]".to_string();
+            return "wa".to_string();
         }
 
-        return "ba[protocol^=http]".to_string();
+        return "ba".to_string();
+    }
+
+    /// Returns the appropriate yt-dlp format argument for video downloads based on the specified
+    /// preferences.
+    fn get_video_format_arg(video_resolution: &str) -> String {
+        return format!("bv[height={}]", video_resolution);
+    }
+
+    /// Collects audio and video format arguments to one string argurment that can be passed
+    /// to the yt-dlp download command.
+    ///
+    /// The argument uses direct download only, ignoring fragmented downloads.
+    fn get_format_arg(audio_format: &str, video_format: &str) -> String {
+        return format!("({}+{})[protocol^=http]", audio_format, video_format);
     }
 }
 
@@ -87,11 +101,15 @@ pub async fn download(
     url: &str,
     worst_audio: bool,
     output_path: &str,
+    video_resolution: &str,
     on_event: Channel<DownloadEvent>,
 ) -> Result<(), ()> {
     let mut cmd = Command::new("yt-dlp")
         .arg("-f")
-        .arg(Download::get_audio_format_arg(Some(&worst_audio)))
+        .arg(Download::get_format_arg(
+            &Download::get_audio_format_arg(Some(&worst_audio)),
+            &Download::get_video_format_arg(video_resolution)
+        ))
         .arg("--force-overwrites")
         .arg("--progress-template")
         .arg("%(progress._percent)s|%(progress._total_bytes_str)s|%(progress._speed_str)s|%(progress._eta_str)s")
