@@ -2,14 +2,18 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { HeroUIProvider } from "@heroui/react";
-import * as DefaultOptions from "./lib/default-options";
+import { setup, DefaultsContext } from "./lib/default-options";
 
-DefaultOptions.setup().finally(() => {
-  ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-    <React.StrictMode>
-      <HeroUIProvider>
+ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+  <React.StrictMode>
+    <HeroUIProvider>
+      <DefaultsContext.Provider
+        value={{
+          outputDir: await setup(),
+        }}
+      >
         <App />
-      </HeroUIProvider>
-    </React.StrictMode>
-  );
-});
+      </DefaultsContext.Provider>
+    </HeroUIProvider>
+  </React.StrictMode>
+);

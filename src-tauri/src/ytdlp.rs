@@ -3,6 +3,7 @@ use std::{
     process::{Child, Command, Output, Stdio},
 };
 
+use anyhow::{Error as AnyError, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -153,19 +154,19 @@ pub fn download(// audio_format: &str,
 struct VideoInfo {
     id: String,
     title: String,
-    formats: Vec<YtdlpFormat>,
+    formats: Vec<AudioOnly_YtdlpFormat>,
 }
 
 impl TryFrom<&serde_json::Value> for VideoInfo {
-    type Error = anyhow::Error;
+    type Error = AnyError;
 
-    fn try_from(info: &Value) -> anyhow::Result<Self> {
+    fn try_from(info: &Value) -> Result<Self> {
         // Using {.as_str.to_owned()} to remove lingering \" escapes in
         // property values that would otherwise be there with a {.to_string()}.
 
-        let mut formats: Vec<anyhow::Result<AudioOnly_YtdlpFormat>> = info["formats"]
+        let mut formats: Result<Vec<AudioOnly_YtdlpFormat>> = info["formats"]
             .as_array()
-            .ok_or(anyhow::anyhow!("Missing formats"))?
+            .ok_or(anyhow::format_err!("Missing formats"))?
             .iter()
             .map(AudioOnly_YtdlpFormat::try_from)
             .collect();
@@ -173,18 +174,13 @@ impl TryFrom<&serde_json::Value> for VideoInfo {
         Ok(Self {
             id: info["id"]
                 .as_str()
-                .ok_or(anyhow::anyhow!("Missing id"))?
+                .ok_or(anyhow::format_err!("Missing id"))?
                 .to_owned(),
             title: info["title"]
                 .as_str()
-                .ok_or(anyhow::anyhow!("Missing title"))?
+                .ok_or(anyhow::format_err!("Missing title"))?
                 .to_owned(),
-            formats: info["formats"]
-                .as_array()
-                .ok_or(anyhow::anyhow!("Missing formats"))?
-                .iter()
-                .map(YtdlpFormat::try_from)
-                .collect::<anyhow::Result<Vec<_>>>()?,
+            formats: formats?,
         })
     }
 }
@@ -198,9 +194,9 @@ struct AudioOnly_YtdlpFormat {
 }
 
 impl TryFrom<&serde_json::Value> for AudioOnly_YtdlpFormat {
-    type Error = anyhow::Error;
+    type Error = AnyError;
 
-    fn try_from(format: &Value) -> anyhow::Result<Self> {
+    fn try_from(format: &Value) -> Result<Self> {
         // Using {.as_str.to_owned()} to remove lingering \" escapes in
         // property values that would otherwise be there with a {.to_string()}.
 

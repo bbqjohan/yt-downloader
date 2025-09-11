@@ -1,167 +1,209 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
-import { YtdlpFormatItem } from "./fetch-video-info";
-import {
-  DownloadEvent,
-  DownloadItem,
-  DownloadSpeed,
-} from "../lib/download-engine";
+import { DownloadEvent } from "../lib/download-engine";
 
-interface DownloadParameters {
+/**
+ * Interface for the download invocation parameters.
+ */
+interface DownloadInvokeParams {
   url: string;
-  outputDir: string;
-  videoTitle: string;
-  audioFormat: YtdlpFormatItem;
-  videoFormat: YtdlpFormatItem;
+  worstAudio: boolean;
+  outputPath: string;
+  onEvent: Channel<DownloadEvents>;
 }
 
-export class VideoDownloadItem extends DownloadItem<DownloadParameters> {}
+/**
+ * Parameters required to start a video download.
+ */
+export class DownloadParameters {
+  url: string;
+  worstAudio: boolean;
+  outputPath: string;
+
+  constructor({
+    url,
+    worstAudio = false,
+    outputPath = "",
+  }: {
+    url: string;
+    worstAudio?: boolean;
+    outputPath?: string;
+  }) {
+    this.url = url;
+    this.worstAudio = worstAudio;
+    this.outputPath = outputPath;
+  }
+}
+
+/**
+ * Statuses of a video download.
+ *
+ * - `"started"`: Download has started.
+ * - `"finished"`: Download has finished without error.
+ * - `"error"`: Download suffered and error and was cancelled.
+ * - `""`: Download has not been started.
+ */
+type VideoDownloadItemStatus = "started" | "finished" | "error" | "";
+
+export class VideoDownloadItemError {
+  message: string;
+  help: string;
+
+  constructor({
+    message = "",
+    help = "",
+  }: {
+    message?: string;
+    help?: string;
+  }) {
+    this.help = help;
+    this.message = message;
+  }
+}
+
+/**
+ * Represents a video download item with its URL and ongoing status.
+ */
+export class VideoDownloadItem {
+  parameters: DownloadParameters;
+  status: VideoDownloadItemStatus;
+  progress: number;
+  error: VideoDownloadItemError;
+
+  constructor({
+    parameters,
+    status = "",
+    progress = 0,
+    error = new VideoDownloadItemError({}),
+  }: {
+    parameters: DownloadParameters;
+    status?: VideoDownloadItemStatus;
+    progress?: number;
+    error?: VideoDownloadItemError;
+  }) {
+    this.parameters = parameters;
+    this.status = status;
+    this.progress = progress;
+    this.error = error;
+  }
+
+  get progressString(): string {
+    const floored = Math.floor(this.progress * 10) / 10;
+    return `  ${floored}%`;
+  }
+
+  get isFinished(): boolean {
+    return this.progress >= 100 && this.status === "finished";
+  }
+
+  get isStarted(): boolean {
+    return this.status === "started";
+  }
+
+  get isNew(): boolean {
+    return this.status === "";
+  }
+
+  get hasError(): boolean {
+    return this.status === "error";
+  }
+}
 
 type DownloadEventStarted = DownloadEvent<"started", {}>;
+type DownloadEventFinished = DownloadEvent<"finished", {}>;
 type DownloadEventProgress = DownloadEvent<
   "progress",
   {
-    output: string;
+    progress: number;
   }
 >;
-type DownloadEventFinished = DownloadEvent<"finished", {}>;
-
+type DownloadEventError = DownloadEvent<"error", VideoDownloadItemError>;
 type DownloadEvents =
   | DownloadEventStarted
+  | DownloadEventFinished
   | DownloadEventProgress
-  | DownloadEventFinished;
+  | DownloadEventError;
 
-function getPercentage(str: string): string | undefined {
-  const result = /\d+(?:\.\d)*\%/.exec(str);
-  return result ? result[0] : undefined;
-}
-
-function getSpeed(str: string): DownloadSpeed | undefined {
-  const result = /(\d+\.\d+)(\w+\/s)/.exec(str);
-  return result ? { rate: parseFloat(result[1]), size: result[2] } : undefined;
-}
-
-function isComplete(str: string): boolean {
-  // When reaching 100%, two outputs will come from backend. One with the progress of the
-  // download, "100.0%", and one with "100%". The second is treated as download complete.
-  return str === "100%";
-}
-
-function createDownloadItem(data: DownloadParameters): VideoDownloadItem {
-  return new DownloadItem({
-    id: data.url,
-    label: data.videoTitle,
-    params: data,
-    children: [
-      new DownloadItem({
-        id: "audio",
-        label: "Audio",
-        size: data.audioFormat.filesize ?? undefined,
-      }),
-      new DownloadItem({
-        id: "video",
-        label: "Video",
-        size: data.audioFormat.filesize ?? undefined,
-      }),
-    ],
-  });
-}
-
+/**
+ * Custom hook to manage video downloads.
+ *
+ * @returns An object which handles a download.
+ */
 export const useDownloadVideo = () => {
-  const [downloadParams, setDownloadParams] = useState(
-    new Map<string, { id: string; params: DownloadParameters }>()
+  const [downloadItem, setDownloadItem] = useState<VideoDownloadItem | null>(
+    null
   );
-  const [items, setItems] = useState(new Map<string, VideoDownloadItem>());
-  const [queue, setQueue] = useState<VideoDownloadItem[]>([]);
 
   useEffect(() => {
-    const _item = queue.at(0);
-    const _params = _item ? downloadParams.get(_item.id) : undefined;
-
-    if (_item && _params) {
+    if (downloadItem instanceof VideoDownloadItem && downloadItem.isNew) {
       const channel = new Channel<DownloadEvents>((message) => {
         if (message.event === "progress") {
-          const output = message.data.output;
-          const percentage = getPercentage(output);
-          const speed = getSpeed(output);
-          let changed = false;
+          setDownloadItem((item) => {
+            if (item instanceof VideoDownloadItem) {
+              return new VideoDownloadItem({
+                ...item,
+                progress: message.data.progress,
+              });
+            }
 
-          if (typeof percentage === "string" && !isComplete(percentage)) {
-            const progress = parseFloat(percentage);
-
-            _item.updateProgress(progress);
-            changed = true;
-          }
-
-          if (speed) {
-            _item.speed = speed;
-            changed = true;
-          }
-
-          if (changed) {
-            setItems((prev) => {
-              return new Map(
-                prev.set(_item.id, new DownloadItem({ ..._item }))
-              );
-            });
-            console.log("ITEM:", _item.id, _item.progress, _item.speed);
-          }
-        } else if (message.event === "finished") {
-          _item.ongoing = false;
-          _item.speed = { rate: 0, size: "" };
-
-          setItems((prev) => {
-            return new Map(prev.set(_item.id, new DownloadItem({ ..._item })));
+            return item;
           });
+        } else if (message.event === "started") {
+          console.log("ITEM STARTED");
+        } else if (message.event === "finished") {
+          console.log("ITEM FINISHED");
+          setDownloadItem((item) => {
+            if (item instanceof VideoDownloadItem) {
+              return new VideoDownloadItem({
+                ...item,
+                status: "finished",
+              });
+            }
 
-          console.log("ITEM DONE:", _item.id, _item.done, _item.progress);
+            return item;
+          });
+        } else if (message.event === "error") {
+          console.log("DOWNLOAD ERROR: ", message.data.message);
+
+          setDownloadItem((item) => {
+            if (item instanceof VideoDownloadItem) {
+              return new VideoDownloadItem({
+                ...item,
+                status: "error",
+                error: new VideoDownloadItemError({
+                  message: message.data.message,
+                  help: message.data.help,
+                }),
+              });
+            }
+
+            return item;
+          });
         }
       });
 
-      invoke<unknown>("download", {
-        url: _params.params.url,
-        outputDir: _params.params.outputDir,
-        audioFormat: _params.params.audioFormat.format_id,
-        videoFormat: _params.params.videoFormat.format_id,
+      invoke<DownloadInvokeParams>("download", {
+        url: downloadItem.parameters.url,
+        worstAudio: downloadItem.parameters.worstAudio,
+        outputPath: downloadItem.parameters.outputPath,
         onEvent: channel,
       });
 
-      _item.ongoing = true;
-
-      const newQueue = [...queue];
-      newQueue.shift();
-
-      setQueue(newQueue);
-      setItems((prev) => {
-        return new Map(prev.set(_item.id, new DownloadItem({ ..._item })));
-      });
+      setDownloadItem(
+        new VideoDownloadItem({ ...downloadItem, status: "started" })
+      );
     }
-
-    console.log("QUEUE:", queue);
-  }, [queue]);
+  }, [downloadItem]);
 
   return {
-    download: (data: DownloadParameters) => {
-      setDownloadParams(
-        (prev) => new Map(prev.set(data.url, { id: data.url, params: data }))
+    startDownload: (parameters: DownloadParameters) => {
+      setDownloadItem(
+        new VideoDownloadItem({
+          parameters,
+        })
       );
-
-      const item = createDownloadItem(data);
-
-      setItems((prev) => {
-        return new Map(prev.set(item.id, item));
-      });
-
-      setQueue((prev) => {
-        return [...prev, item];
-      });
     },
 
-    getParams: (itemId: string) => {
-      return downloadParams.get(itemId);
-    },
-
-    items,
-    isDownloading: false,
+    downloadItem,
   };
 };
