@@ -40,11 +40,11 @@ impl Download {
 
         if (pattern_sign_in.is_match(&text)) {
             return Ok(DownloadError {
-            message: "Sign in to confirm you're not a bot.".to_string(),
-            help:
-                "This error can happen if you're behind a VPN. Try disabling the VPN and try again."
-                    .to_string(),
-        });
+                message: "Sign in to confirm you're not a bot.".to_string(),
+                help:
+                    "This error can happen if you're behind a VPN. Try disabling the VPN and try again."
+                        .to_string(),
+            });
         }
 
         let pattern_format_not_available =
@@ -52,13 +52,13 @@ impl Download {
 
         if (pattern_format_not_available.is_match(&text)) {
             return Ok(DownloadError {
-            message: "Requested format is not available.".to_string(),
-            help: "This error can sometimes be fixed by updating yt-dlp. Try updating it and try again. Alternatively, if you know the format is available, sometimes just trying again will work.".to_string()
-        });
+                message: "Requested format is not available.".to_string(),
+                help: "This error can sometimes be fixed by updating yt-dlp. Try updating it and try again. Alternatively, if you know the format is available, sometimes just trying again will work.".to_string()
+            });
         }
 
         Ok(DownloadError {
-            message: "".to_string(),
+            message: text.to_string(),
             help: "".to_string(),
         })
     }
