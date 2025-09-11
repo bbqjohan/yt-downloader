@@ -9,18 +9,21 @@ import {
   Tabs,
 } from "@heroui/react";
 import { OneColumnLayout } from "../layouts/one-column";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { Key } from "@react-types/shared";
-
 import { useDownloadVideo, VideoDownloadItem } from "../hooks/download-video";
+import { open } from "@tauri-apps/plugin-dialog";
+import { DefaultsContext } from "../lib/default-options";
 
 export function DownloadPage() {
+  const defaults = useContext(DefaultsContext);
   const [url, setUrl] = useState("https://www.youtube.com/watch?v=Dl2vf04UCAM");
   const [worstAudio, setWorstAudio] = useState(false);
+  const [outputPath, setOutputPath] = useState(defaults.outputDir);
   const downloadVideo = useDownloadVideo();
 
   const handleDownload = () => {
-    downloadVideo.startDownload({ url, worstAudio });
+    downloadVideo.startDownload({ url, worstAudio, outputPath });
   };
 
   return (
@@ -38,6 +41,8 @@ export function DownloadPage() {
         <SettingsSection
           setWorstAudio={setWorstAudio}
           worstAudio={worstAudio}
+          outputPath={outputPath}
+          setOutputPath={setOutputPath}
         />
       </div>
     </OneColumnLayout>
@@ -78,44 +83,93 @@ const UrlInput = ({
 interface SettingsSectionProps {
   worstAudio: boolean;
   setWorstAudio: (value: boolean) => void;
+  outputPath: string;
+  setOutputPath: (value: string) => void;
 }
 
 const SettingsSection = ({
   worstAudio,
   setWorstAudio,
+  outputPath,
+  setOutputPath,
 }: SettingsSectionProps) => {
+  const [selectedTab, setSelectedTab] = useState<Key>("");
+
   return (
     <div className="flex flex-col gap-4">
-      <AudioSettings worstAudio={worstAudio} setWorstAudio={setWorstAudio} />
+      <Tabs
+        variant="underlined"
+        selectedKey={selectedTab}
+        onSelectionChange={setSelectedTab}
+      >
+        <Tab key="general" title="General settings">
+          <GeneralSettings
+            outputPath={outputPath}
+            setOutputPath={setOutputPath}
+          />
+        </Tab>
+        <Tab key="audio" title="Audio settings">
+          <AudioSettings
+            worstAudio={worstAudio}
+            setWorstAudio={setWorstAudio}
+          />
+        </Tab>
+      </Tabs>
     </div>
   );
 };
 
-interface AudioSettingsTabProps {
+interface AudioSettingsProps {
   worstAudio: boolean;
   setWorstAudio: (value: boolean) => void;
 }
 
-const AudioSettings = ({
-  worstAudio,
-  setWorstAudio,
-}: AudioSettingsTabProps) => {
-  const [selectedTab, setSelectedTab] = useState<Key>("");
+const AudioSettings = ({ worstAudio, setWorstAudio }: AudioSettingsProps) => {
+  return (
+    <div className="flex flex-col gap-4">
+      <Checkbox isSelected={worstAudio} onValueChange={setWorstAudio}>
+        Worst quality
+      </Checkbox>
+    </div>
+  );
+};
+
+interface GeneralSettingsProps {
+  outputPath: string;
+  setOutputPath: (value: string) => void;
+}
+
+const GeneralSettings = ({
+  outputPath,
+  setOutputPath,
+}: GeneralSettingsProps) => {
+  const handleOutputPathSelect = async () => {
+    const file = await open({
+      multiple: false,
+      directory: true,
+    });
+
+    if (file) {
+      setOutputPath(file);
+    }
+  };
 
   return (
-    <Tabs
-      variant="underlined"
-      selectedKey={selectedTab}
-      onSelectionChange={setSelectedTab}
-    >
-      <Tab key="audio" title="Audio settings">
-        <div>
-          <Checkbox isSelected={worstAudio} onValueChange={setWorstAudio}>
-            Worst quality
-          </Checkbox>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <div className="flex gap-4">
+          <Input
+            label="Output directory"
+            value={outputPath}
+            onValueChange={setOutputPath}
+          />
+          <Button onPress={handleOutputPathSelect}>Select</Button>
         </div>
-      </Tab>
-    </Tabs>
+        <div className="text-xs px-3">
+          Any directory in the path that doesn't exist will be created.
+        </div>
+      </div>
+    </div>
   );
 };
 

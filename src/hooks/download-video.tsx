@@ -8,6 +8,7 @@ import { DownloadEvent } from "../lib/download-engine";
 interface DownloadInvokeParams {
   url: string;
   worstAudio: boolean;
+  outputPath: string;
   onEvent: Channel<DownloadEvents>;
 }
 
@@ -17,16 +18,20 @@ interface DownloadInvokeParams {
 export class DownloadParameters {
   url: string;
   worstAudio: boolean;
+  outputPath: string;
 
   constructor({
     url,
     worstAudio = false,
+    outputPath = "",
   }: {
     url: string;
     worstAudio?: boolean;
+    outputPath?: string;
   }) {
     this.url = url;
     this.worstAudio = worstAudio;
+    this.outputPath = outputPath;
   }
 }
 
@@ -180,6 +185,7 @@ export const useDownloadVideo = () => {
       invoke<DownloadInvokeParams>("download", {
         url: downloadItem.parameters.url,
         worstAudio: downloadItem.parameters.worstAudio,
+        outputPath: downloadItem.parameters.outputPath,
         onEvent: channel,
       });
 
