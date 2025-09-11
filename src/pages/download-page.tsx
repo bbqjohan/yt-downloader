@@ -1,15 +1,26 @@
-import { Button, ButtonProps, Input, InputProps } from "@heroui/react";
+import {
+  Button,
+  ButtonProps,
+  Checkbox,
+  Divider,
+  Input,
+  InputProps,
+  Tab,
+  Tabs,
+} from "@heroui/react";
 import { OneColumnLayout } from "../layouts/one-column";
 import { useState } from "react";
+import { Key } from "@react-types/shared";
 
 import { useDownloadVideo } from "../hooks/download-video";
 
 export function DownloadPage() {
   const [url, setUrl] = useState("https://www.youtube.com/watch?v=Dl2vf04UCAM");
+  const [worstAudio, setWorstAudio] = useState(false);
   const downloadVideo = useDownloadVideo();
 
   const handleDownload = () => {
-    downloadVideo.startDownload({ url });
+    downloadVideo.startDownload({ url, worstAudio });
   };
 
   return (
@@ -19,17 +30,22 @@ export function DownloadPage() {
           url={url}
           onUrlChange={setUrl}
           onDownload={handleDownload}
-          isDisabled={downloadVideo.downloadItem?.ongoing || false}
+          isDisabled={downloadVideo.downloadItem?.isStarted || false}
         />
         {downloadVideo.downloadItem && (
           <div className="text-black">
-            {downloadVideo.downloadItem.finished
+            {downloadVideo.downloadItem.isFinished
               ? "Download finished!"
               : `Downloading... ${
                   downloadVideo.downloadItem.progressString || "0%"
                 }`}
           </div>
         )}
+        <Divider />
+        <SettingsSection
+          setWorstAudio={setWorstAudio}
+          worstAudio={worstAudio}
+        />
       </div>
     </OneColumnLayout>
   );
@@ -63,5 +79,49 @@ const UrlInput = ({
         </Button>
       </div>
     </div>
+  );
+};
+
+interface SettingsSectionProps {
+  worstAudio: boolean;
+  setWorstAudio: (value: boolean) => void;
+}
+
+const SettingsSection = ({
+  worstAudio,
+  setWorstAudio,
+}: SettingsSectionProps) => {
+  return (
+    <div className="flex flex-col gap-4">
+      <AudioSettings worstAudio={worstAudio} setWorstAudio={setWorstAudio} />
+    </div>
+  );
+};
+
+interface AudioSettingsTabProps {
+  worstAudio: boolean;
+  setWorstAudio: (value: boolean) => void;
+}
+
+const AudioSettings = ({
+  worstAudio,
+  setWorstAudio,
+}: AudioSettingsTabProps) => {
+  const [selectedTab, setSelectedTab] = useState<Key>("");
+
+  return (
+    <Tabs
+      variant="underlined"
+      selectedKey={selectedTab}
+      onSelectionChange={setSelectedTab}
+    >
+      <Tab key="audio" title="Audio settings">
+        <div>
+          <Checkbox isSelected={worstAudio} onValueChange={setWorstAudio}>
+            Worst quality
+          </Checkbox>
+        </div>
+      </Tab>
+    </Tabs>
   );
 };

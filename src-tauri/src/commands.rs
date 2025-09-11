@@ -26,11 +26,15 @@ pub enum DownloadEvent {
 /// The downloaded video will be of the best available quality which has a direct download
 /// strategy.
 #[tauri::command]
-pub async fn download(url: &str, on_event: Channel<DownloadEvent>) -> Result<(), ()> {
+pub async fn download(
+    url: &str,
+    worst_audio: bool,
+    on_event: Channel<DownloadEvent>,
+) -> Result<(), ()> {
     // let output = Command::new("yt-dlp").arg(format!("-F {}", url)).output();
     let mut cmd = Command::new("yt-dlp")
-        // .arg(format!("--progress-delta {}", 1))
-        .arg("-f ba[protocol^=http]")
+        .arg("-f")
+        .arg(get_audio_format_arg(Some(&worst_audio)))
         .arg("--force-overwrites")
         .arg("--progress-template")
         .arg("%(progress._percent)s|%(progress._total_bytes_str)s|%(progress._speed_str)s|%(progress._eta_str)s")
@@ -73,4 +77,17 @@ pub async fn download(url: &str, on_event: Channel<DownloadEvent>) -> Result<(),
     }
 
     Ok(())
+}
+
+/// Returns the appropriate yt-dlp format argument for audio downloads based on the specified
+/// preferences.
+///
+/// - If `worst_audio` is `Some(true)`, the function returns the format string for the worst
+///   available audio quality that uses the HTTP protocol.
+pub fn get_audio_format_arg(worst_audio: Option<&bool>) -> String {
+    if (worst_audio.is_some_and(|x| x == &true)) {
+        return "wa[protocol^=http]".to_string();
+    }
+
+    return "ba[protocol^=http]".to_string();
 }
