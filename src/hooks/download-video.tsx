@@ -9,6 +9,7 @@ interface DownloadInvokeParams {
   url: string;
   worstAudio: boolean;
   outputPath: string;
+  videoResolution: string;
   onEvent: Channel<DownloadEvents>;
 }
 
@@ -19,19 +20,23 @@ export class DownloadParameters {
   url: string;
   worstAudio: boolean;
   outputPath: string;
+  videoResolution: string;
 
   constructor({
     url,
     worstAudio = false,
     outputPath = "",
+    videoResolution = "",
   }: {
     url: string;
     worstAudio?: boolean;
     outputPath?: string;
+    videoResolution?: string;
   }) {
     this.url = url;
     this.worstAudio = worstAudio;
     this.outputPath = outputPath;
+    this.videoResolution = videoResolution;
   }
 }
 
@@ -186,6 +191,7 @@ export const useDownloadVideo = () => {
         url: downloadItem.parameters.url,
         worstAudio: downloadItem.parameters.worstAudio,
         outputPath: downloadItem.parameters.outputPath,
+        videoResolution: downloadItem.parameters.videoResolution,
         onEvent: channel,
       });
 

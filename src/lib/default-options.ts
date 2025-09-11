@@ -7,8 +7,10 @@ export async function setup(): Promise<string> {
 
 interface DefaultsContext {
   outputDir: string;
+  videoResolution: string;
 }
 
 export const DefaultsContext = createContext<DefaultsContext>({
   outputDir: "",
+  videoResolution: "360",
 });
