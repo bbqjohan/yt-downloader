@@ -12,7 +12,7 @@ import { OneColumnLayout } from "../layouts/one-column";
 import { useState } from "react";
 import { Key } from "@react-types/shared";
 
-import { useDownloadVideo } from "../hooks/download-video";
+import { useDownloadVideo, VideoDownloadItem } from "../hooks/download-video";
 
 export function DownloadPage() {
   const [url, setUrl] = useState("https://www.youtube.com/watch?v=Dl2vf04UCAM");
@@ -32,15 +32,8 @@ export function DownloadPage() {
           onDownload={handleDownload}
           isDisabled={downloadVideo.downloadItem?.isStarted || false}
         />
-        {downloadVideo.downloadItem && (
-          <div className="text-black">
-            {downloadVideo.downloadItem.isFinished
-              ? "Download finished!"
-              : `Downloading... ${
-                  downloadVideo.downloadItem.progressString || "0%"
-                }`}
-          </div>
-        )}
+        <DownloadProgress item={downloadVideo.downloadItem} />
+        <DownloadError item={downloadVideo.downloadItem} />
         <Divider />
         <SettingsSection
           setWorstAudio={setWorstAudio}
@@ -124,4 +117,23 @@ const AudioSettings = ({
       </Tab>
     </Tabs>
   );
+};
+
+const DownloadProgress = ({ item }: { item: VideoDownloadItem | null }) => {
+  return item && !item.hasError ? (
+    <div className="text-black">
+      {item.isFinished
+        ? "Download finished!"
+        : `Downloading... ${item.progressString || "0%"}`}
+    </div>
+  ) : undefined;
+};
+
+const DownloadError = ({ item }: { item: VideoDownloadItem | null }) => {
+  return item && item.hasError ? (
+    <div className="bg-red-200 rounded-lg text-red-900 px-3 py-2 flex flex-col gap-4">
+      <div>{`Error occurred: ${item.error.message}`}</div>
+      {item.error.help && <div>{item.error.help}</div>}
+    </div>
+  ) : undefined;
 };

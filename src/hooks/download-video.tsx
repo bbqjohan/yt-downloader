@@ -31,25 +31,55 @@ export class DownloadParameters {
 }
 
 /**
+ * Statuses of a video download.
+ *
+ * - `"started"`: Download has started.
+ * - `"finished"`: Download has finished without error.
+ * - `"error"`: Download suffered and error and was cancelled.
+ * - `""`: Download has not been started.
+ */
+type VideoDownloadItemStatus = "started" | "finished" | "error" | "";
+
+export class VideoDownloadItemError {
+  message: string;
+  help: string;
+
+  constructor({
+    message = "",
+    help = "",
+  }: {
+    message?: string;
+    help?: string;
+  }) {
+    this.help = help;
+    this.message = message;
+  }
+}
+
+/**
  * Represents a video download item with its URL and ongoing status.
  */
 export class VideoDownloadItem {
   parameters: DownloadParameters;
-  status: "started" | "finished" | "progress" | "";
+  status: VideoDownloadItemStatus;
   progress: number;
+  error: VideoDownloadItemError;
 
   constructor({
     parameters,
     status = "",
     progress = 0,
+    error = new VideoDownloadItemError({}),
   }: {
     parameters: DownloadParameters;
-    status?: "started" | "finished" | "progress" | "";
+    status?: VideoDownloadItemStatus;
     progress?: number;
+    error?: VideoDownloadItemError;
   }) {
     this.parameters = parameters;
     this.status = status;
     this.progress = progress;
+    this.error = error;
   }
 
   get progressString(): string {
@@ -58,7 +88,7 @@ export class VideoDownloadItem {
   }
 
   get isFinished(): boolean {
-    return this.progress >= 100;
+    return this.progress >= 100 && this.status === "finished";
   }
 
   get isStarted(): boolean {
@@ -67,6 +97,10 @@ export class VideoDownloadItem {
 
   get isNew(): boolean {
     return this.status === "";
+  }
+
+  get hasError(): boolean {
+    return this.status === "error";
   }
 }
 
@@ -78,10 +112,12 @@ type DownloadEventProgress = DownloadEvent<
     progress: number;
   }
 >;
+type DownloadEventError = DownloadEvent<"error", VideoDownloadItemError>;
 type DownloadEvents =
   | DownloadEventStarted
   | DownloadEventFinished
-  | DownloadEventProgress;
+  | DownloadEventProgress
+  | DownloadEventError;
 
 /**
  * Custom hook to manage video downloads.
@@ -116,6 +152,23 @@ export const useDownloadVideo = () => {
               return new VideoDownloadItem({
                 ...item,
                 status: "finished",
+              });
+            }
+
+            return item;
+          });
+        } else if (message.event === "error") {
+          console.log("DOWNLOAD ERROR: ", message.data.message);
+
+          setDownloadItem((item) => {
+            if (item instanceof VideoDownloadItem) {
+              return new VideoDownloadItem({
+                ...item,
+                status: "error",
+                error: new VideoDownloadItemError({
+                  message: message.data.message,
+                  help: message.data.help,
+                }),
               });
             }
 
