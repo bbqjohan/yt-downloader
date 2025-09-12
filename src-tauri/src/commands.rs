@@ -1,4 +1,4 @@
-use anyhow::Result as AnyResult;
+use anyhow::{anyhow, Result as AnyResult};
 use regex::Regex;
 use serde::Serialize;
 use std::{
@@ -7,7 +7,17 @@ use std::{
 };
 use tauri::ipc::Channel;
 
-/// Events that can be sent back to the frontend during a download operation.
+/// Represents the possible events that can be sent back to the frontend during a download
+/// operation.
+///
+/// # Variants
+///
+/// - `Started {}`: Indicates that the download operation has started.
+/// - `Progress { progress: f64 }`: Indicates the progress of the download as a floating-point percentage (0.0 to 100.0).
+/// - `Finished {}`: Indicates that the download operation has finished successfully.
+/// - `Error { message: String, help: String }`: Indicates that an error occurred during the
+/// download operation, providing an error message and an optional help string with suggestions for
+/// resolution.
 #[derive(Clone, Serialize)]
 #[serde(
     rename_all = "camelCase",
@@ -78,8 +88,8 @@ impl Download {
 
     /// Returns the appropriate yt-dlp format argument for video downloads based on the specified
     /// preferences.
-    fn get_video_format_arg(video_resolution: &str) -> String {
-        return format!("bv[height={}]", video_resolution);
+    fn get_video_format_arg(height: VideoHeight, constraint: VideoHeightConstraint) -> String {
+        return format!("bv[height{}{}]", constraint.to_string(), height.to_string());
     }
 
     /// Collects audio and video format arguments to one string argurment that can be passed
@@ -88,6 +98,107 @@ impl Download {
     /// The argument uses direct download only, ignoring fragmented downloads.
     fn get_format_arg(audio_format: &str, video_format: &str) -> String {
         return format!("({}+{})[protocol^=http]", audio_format, video_format);
+    }
+}
+
+/// Represents the possible video resolutions (heights) that can be selected for a video download.
+///
+/// Each variant corresponds to a specific vertical resolution in pixels, commonly used in video
+/// formats:
+/// - `P144`: 144p (144 pixels high)
+/// - `P240`: 240p
+/// - `P360`: 360p
+/// - `P480`: 480p
+/// - `P720`: 720p (HD)
+/// - `P1080`: 1080p (Full HD)
+/// - `P1440`: 1440p (2K)
+/// - `P2160`: 2160p (4K)
+///
+/// This enum is used to specify or restrict the desired video quality when downloading videos.
+enum VideoHeight {
+    P144,
+    P240,
+    P360,
+    P480,
+    P720,
+    P1080,
+    P1440,
+    P2160,
+}
+
+impl VideoHeight {
+    pub fn to_string(&self) -> String {
+        match (&self) {
+            Self::P144 => "144",
+            Self::P240 => "240",
+            Self::P360 => "360",
+            Self::P480 => "480",
+            Self::P720 => "720",
+            Self::P1080 => "1080",
+            Self::P1440 => "1440",
+            Self::P2160 => "2160",
+        }
+        .to_owned()
+    }
+}
+
+impl TryFrom<&str> for VideoHeight {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &str) -> AnyResult<Self> {
+        Ok(match (value) {
+            "144" => Self::P144,
+            "240" => Self::P240,
+            "360" => Self::P360,
+            "480" => Self::P480,
+            "720" => Self::P720,
+            "1080" => Self::P1080,
+            "1440" => Self::P1440,
+            "2160" => Self::P2160,
+            _ => return Err(anyhow!(format!("{value} is an invalid video resolution."))),
+        })
+    }
+}
+
+/// Represents constraints that can be applied to video height selection when downloading videos.
+///
+/// This enum is used to specify how the desired video resolution should be matched:
+/// - `Eq` (`=`): Select videos with a height exactly equal to the specified value.
+/// - `Gte` (`>=`): Select videos with a height greater than or equal to the specified value.
+/// - `Lte` (`<=`): Select videos with a height less than or equal to the specified value.
+///
+/// Used in conjunction with [`VideoHeight`] to control the quality of the downloaded video.
+enum VideoHeightConstraint {
+    Eq,
+    Gte,
+    Lte,
+}
+
+impl VideoHeightConstraint {
+    pub fn to_string(&self) -> String {
+        match (&self) {
+            Self::Eq => "=",
+            Self::Gte => ">=",
+            Self::Lte => "<=",
+        }
+        .to_owned()
+    }
+}
+
+impl TryFrom<&str> for VideoHeightConstraint {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &str) -> AnyResult<Self> {
+        Ok(match (value) {
+            "=" => Self::Eq,
+            ">=" => Self::Gte,
+            "<=" => Self::Lte,
+            _ => {
+                return Err(anyhow!(format!(
+                    "{value} is an invalid video resolution constraint."
+                )))
+            }
+        })
     }
 }
 
@@ -101,14 +212,43 @@ pub async fn download(
     url: &str,
     worst_audio: bool,
     output_path: &str,
-    video_resolution: &str,
+    video_height: &str,
+    video_height_constraint: &str,
     on_event: Channel<DownloadEvent>,
 ) -> Result<(), ()> {
+    let vh = match VideoHeight::try_from(video_height) {
+        Ok(v) => v,
+        Err(e) => {
+            on_event
+                .send(DownloadEvent::Error {
+                    message: e.to_string(),
+                    help: "".to_string(),
+                })
+                .unwrap();
+
+            return Ok(());
+        }
+    };
+
+    let vhc = match VideoHeightConstraint::try_from(video_height_constraint) {
+        Ok(v) => v,
+        Err(e) => {
+            on_event
+                .send(DownloadEvent::Error {
+                    message: e.to_string(),
+                    help: "".to_string(),
+                })
+                .unwrap();
+
+            return Ok(());
+        }
+    };
+
     let mut cmd = Command::new("yt-dlp")
         .arg("-f")
         .arg(Download::get_format_arg(
             &Download::get_audio_format_arg(Some(&worst_audio)),
-            &Download::get_video_format_arg(video_resolution)
+            &Download::get_video_format_arg(vh, vhc)
         ))
         .arg("--force-overwrites")
         .arg("--progress-template")

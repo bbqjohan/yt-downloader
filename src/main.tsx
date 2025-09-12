@@ -10,7 +10,8 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       <DefaultsContext.Provider
         value={{
           outputDir: await setup(),
-          videoResolution: "360",
+          videoHeight: "360",
+          videoHeightConstraint: "=",
         }}
       >
         <App />
