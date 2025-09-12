@@ -9,8 +9,51 @@ interface DownloadInvokeParams {
   url: string;
   worstAudio: boolean;
   outputPath: string;
-  videoResolution: string;
+  videoHeight: VideoHeightValues;
+  videoHeightConstraint: VideoHeightConstraintValues;
   onEvent: Channel<DownloadEvents>;
+}
+
+export type VideoHeightValues =
+  | "144"
+  | "240"
+  | "360"
+  | "480"
+  | "720"
+  | "1080"
+  | "1440"
+  | "2160";
+
+export const VideoHeight: Record<VideoHeightValues, string> = {
+  "144": "144p",
+  "240": "240p",
+  "360": "360p",
+  "480": "480p",
+  "720": "720p",
+  "1080": "1080p",
+  "1440": "2160p",
+  "2160": "2160p",
+};
+
+export type VideoHeightConstraintValues = "=" | "<=" | ">=";
+
+export const VideoHeightConstraint: Record<
+  VideoHeightConstraintValues,
+  string
+> = {
+  "=": "=",
+  ">=": ">=",
+  "<=": "<=",
+};
+
+export function isVideoHeight(value: any): value is VideoHeightValues {
+  return !!VideoHeight[value as VideoHeightValues];
+}
+
+export function isVideoHeightConstraint(
+  value: any
+): value is VideoHeightConstraintValues {
+  return !!VideoHeightConstraint[value as VideoHeightConstraintValues];
 }
 
 /**
@@ -20,23 +63,27 @@ export class DownloadParameters {
   url: string;
   worstAudio: boolean;
   outputPath: string;
-  videoResolution: string;
+  videoHeight: VideoHeightValues;
+  videoHeightConstraint: VideoHeightConstraintValues;
 
   constructor({
     url,
     worstAudio = false,
     outputPath = "",
-    videoResolution = "",
+    videoHeight = "360",
+    videoHeightConstraint = "=",
   }: {
     url: string;
     worstAudio?: boolean;
     outputPath?: string;
-    videoResolution?: string;
+    videoHeight?: VideoHeightValues;
+    videoHeightConstraint?: VideoHeightConstraintValues;
   }) {
     this.url = url;
     this.worstAudio = worstAudio;
     this.outputPath = outputPath;
-    this.videoResolution = videoResolution;
+    this.videoHeight = videoHeight;
+    this.videoHeightConstraint = videoHeightConstraint;
   }
 }
 
@@ -191,7 +238,8 @@ export const useDownloadVideo = () => {
         url: downloadItem.parameters.url,
         worstAudio: downloadItem.parameters.worstAudio,
         outputPath: downloadItem.parameters.outputPath,
-        videoResolution: downloadItem.parameters.videoResolution,
+        videoHeight: downloadItem.parameters.videoHeight,
+        videoHeightConstraint: downloadItem.parameters.videoHeightConstraint,
         onEvent: channel,
       });
 
