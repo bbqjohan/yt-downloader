@@ -257,7 +257,7 @@ pub async fn download(
         .arg("1")
         .arg("-o")
         .arg(format!("{}\\%(title)s.%(ext)s", output_path))
-        .arg("https://www.youtube.com/watch?v=Dl2vf04UCAM")
+        .arg(url)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()

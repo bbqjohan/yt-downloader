@@ -2,10 +2,8 @@ import {
   Button,
   ButtonProps,
   Checkbox,
-  cn,
   Divider,
   Input,
-  InputProps,
   Select,
   SelectItem,
   SharedSelection,
@@ -13,56 +11,49 @@ import {
   Tabs,
 } from "@heroui/react";
 import { OneColumnLayout } from "../layouts/one-column";
-import { useContext, useState } from "react";
+import { memo, useCallback, useContext, useMemo, useState } from "react";
 import { Key } from "@react-types/shared";
 import {
   isVideoHeight,
   isVideoHeightConstraint,
   useDownloadVideo,
   VideoDownloadItem,
-  VideoHeight,
-  VideoHeightConstraint,
-  VideoHeightValues,
 } from "../hooks/download-video";
 import { open } from "@tauri-apps/plugin-dialog";
 import { DefaultsContext } from "../lib/default-options";
+import { useStore } from "../store/store";
 
 export function DownloadPage() {
   const defaults = useContext(DefaultsContext);
-  const [url, setUrl] = useState("https://www.youtube.com/watch?v=Dl2vf04UCAM");
-  const [worstAudio, setWorstAudio] = useState(false);
-  const [outputPath, setOutputPath] = useState(defaults.outputDir);
-  const [videoHeight, setVideoHeight] = useState<SharedSelection>(
-    new Set([defaults.videoHeight])
+  const url = useStore((state) => state.settings.general.url);
+  const isWorstQuality = useStore(
+    (state) => state.settings.audio.isWorstQuality
   );
-
-  const [videoHeightConstraint, setVideoHeightConstraint] =
-    useState<SharedSelection>(new Set([defaults.videoHeightConstraint]));
+  const outputPath = useStore((state) => state.settings.general.outputPath);
+  const videoHeight = useStore((state) => state.settings.video.height);
+  const videoHeightConstraint = useStore(
+    (state) => state.settings.video.heightConstraint
+  );
 
   const downloadVideo = useDownloadVideo();
 
   const handleDownload = () => {
-    const vh =
-      videoHeight instanceof Set ? videoHeight.values().next().value : "";
-    const vhc =
-      videoHeightConstraint instanceof Set
-        ? videoHeightConstraint.values().next().value
-        : "";
-
-    if (!isVideoHeight(vh)) {
-      throw Error(vh + " is not a legitimate video height.");
+    if (!isVideoHeight(videoHeight)) {
+      throw Error(videoHeight + " is not a legitimate video height.");
     }
 
-    if (!isVideoHeightConstraint(vhc)) {
-      throw Error(vhc + " is not a legitimate video height constraint.");
+    if (!isVideoHeightConstraint(videoHeightConstraint)) {
+      throw Error(
+        videoHeightConstraint + " is not a legitimate video height constraint."
+      );
     }
 
     downloadVideo.startDownload({
       url,
-      worstAudio,
+      worstAudio: isWorstQuality,
       outputPath,
-      videoHeight: vh,
-      videoHeightConstraint: vhc,
+      videoHeight,
+      videoHeightConstraint,
     });
   };
 
@@ -70,42 +61,26 @@ export function DownloadPage() {
     <OneColumnLayout>
       <div className="flex flex-col gap-4">
         <UrlInput
-          url={url}
-          onUrlChange={setUrl}
           onDownload={handleDownload}
           isDisabled={downloadVideo.downloadItem?.isStarted || false}
         />
         <DownloadProgress item={downloadVideo.downloadItem} />
         <DownloadError item={downloadVideo.downloadItem} />
         <Divider />
-        <SettingsSection
-          setWorstAudio={setWorstAudio}
-          worstAudio={worstAudio}
-          outputPath={outputPath}
-          setOutputPath={setOutputPath}
-          videoHeight={videoHeight}
-          setVideoHeight={setVideoHeight}
-          videoHeightConstraint={videoHeightConstraint}
-          setVideoHeightConstraint={setVideoHeightConstraint}
-        />
+        <SettingsSection />
       </div>
     </OneColumnLayout>
   );
 }
 
 interface UrlInputProps {
-  url: string;
   isDisabled: boolean;
   onDownload: ButtonProps["onPress"];
-  onUrlChange: InputProps["onValueChange"];
 }
 
-const UrlInput = ({
-  url,
-  isDisabled,
-  onDownload,
-  onUrlChange,
-}: UrlInputProps) => {
+const UrlInput = ({ isDisabled, onDownload }: UrlInputProps) => {
+  const { url, setUrl } = useStore((state) => state.settings.general);
+
   return (
     <div className="text-black flex flex-col gap-4">
       <div className="flex items-center gap-4">
@@ -113,7 +88,7 @@ const UrlInput = ({
           label="URL"
           type="url"
           value={url}
-          onValueChange={onUrlChange}
+          onValueChange={setUrl}
           isDisabled={isDisabled}
         />
         <Button color="primary" onPress={onDownload} isDisabled={isDisabled}>
@@ -124,27 +99,7 @@ const UrlInput = ({
   );
 };
 
-interface SettingsSectionProps {
-  worstAudio: boolean;
-  setWorstAudio: (value: boolean) => void;
-  outputPath: string;
-  setOutputPath: (value: string) => void;
-  videoHeight: SharedSelection;
-  setVideoHeight: (value: SharedSelection) => void;
-  videoHeightConstraint: SharedSelection;
-  setVideoHeightConstraint: (value: SharedSelection) => void;
-}
-
-const SettingsSection = ({
-  worstAudio,
-  setWorstAudio,
-  outputPath,
-  setOutputPath,
-  videoHeight,
-  setVideoHeight,
-  videoHeightConstraint,
-  setVideoHeightConstraint,
-}: SettingsSectionProps) => {
+const SettingsSection = () => {
   const [selectedTab, setSelectedTab] = useState<Key>("");
 
   return (
@@ -155,54 +110,38 @@ const SettingsSection = ({
         onSelectionChange={setSelectedTab}
       >
         <Tab key="general" title="General settings">
-          <GeneralSettings
-            outputPath={outputPath}
-            setOutputPath={setOutputPath}
-          />
+          <GeneralSettings />
         </Tab>
         <Tab key="audio" title="Audio settings">
-          <AudioSettings
-            worstAudio={worstAudio}
-            setWorstAudio={setWorstAudio}
-          />
+          <AudioSettings />
         </Tab>
         <Tab key="video" title="Video settings">
-          <VideoSettings
-            videoHeight={videoHeight}
-            setVideoHeight={setVideoHeight}
-            videoHeightConstraint={videoHeightConstraint}
-            setVideoHeightConstraint={setVideoHeightConstraint}
-          />
+          <VideoSettings />
         </Tab>
       </Tabs>
     </div>
   );
 };
 
-interface AudioSettingsProps {
-  worstAudio: boolean;
-  setWorstAudio: (value: boolean) => void;
-}
+const AudioSettings = () => {
+  const { isWorstQuality, setIsWorstQuality } = useStore(
+    (state) => state.settings.audio
+  );
 
-const AudioSettings = ({ worstAudio, setWorstAudio }: AudioSettingsProps) => {
   return (
     <div className="flex flex-col gap-4">
-      <Checkbox isSelected={worstAudio} onValueChange={setWorstAudio}>
+      <Checkbox isSelected={isWorstQuality} onValueChange={setIsWorstQuality}>
         Worst quality
       </Checkbox>
     </div>
   );
 };
 
-interface GeneralSettingsProps {
-  outputPath: string;
-  setOutputPath: (value: string) => void;
-}
+const GeneralSettings = () => {
+  const { outputPath, setOutputPath } = useStore(
+    (state) => state.settings.general
+  );
 
-const GeneralSettings = ({
-  outputPath,
-  setOutputPath,
-}: GeneralSettingsProps) => {
   const handleOutputPathSelect = async () => {
     const file = await open({
       multiple: false,
@@ -233,19 +172,36 @@ const GeneralSettings = ({
   );
 };
 
-interface VideoSettingsProps {
-  videoHeight: SharedSelection;
-  setVideoHeight: (value: SharedSelection) => void;
-  videoHeightConstraint: SharedSelection;
-  setVideoHeightConstraint: (value: SharedSelection) => void;
-}
+const VideoSettings = () => {
+  const { height, setHeight, heightConstraint, setHeightConstraint } = useStore(
+    (state) => state.settings.video
+  );
+  const _height = useMemo(() => [height], [height]);
+  const _heightConstraint = useMemo(
+    () => [heightConstraint],
+    [heightConstraint]
+  );
 
-const VideoSettings = ({
-  videoHeight,
-  setVideoHeight,
-  videoHeightConstraint,
-  setVideoHeightConstraint,
-}: VideoSettingsProps) => {
+  const handleVideoHeight = useCallback((value: SharedSelection) => {
+    if (value instanceof Set) {
+      const v = value.values().next().value;
+
+      if (typeof v === "string") {
+        setHeight(v);
+      }
+    }
+  }, []);
+
+  const handleVideoHeightConstraint = useCallback((value: SharedSelection) => {
+    if (value instanceof Set) {
+      const v = value.values().next().value;
+
+      if (typeof v === "string") {
+        setHeightConstraint(v);
+      }
+    }
+  }, []);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
@@ -253,8 +209,8 @@ const VideoSettings = ({
         <div className="flex gap-4">
           <Select
             aria-label="Video resolution constraint"
-            selectedKeys={videoHeightConstraint}
-            onSelectionChange={setVideoHeightConstraint}
+            selectedKeys={_heightConstraint}
+            onSelectionChange={handleVideoHeightConstraint}
             classNames={{
               base: "flex-1 min-w-20",
             }}
@@ -265,8 +221,8 @@ const VideoSettings = ({
           </Select>
           <Select
             aria-label="Video resolution"
-            selectedKeys={videoHeight}
-            onSelectionChange={setVideoHeight}
+            selectedKeys={_height}
+            onSelectionChange={handleVideoHeight}
           >
             <SelectItem key="144">144p</SelectItem>
             <SelectItem key="240">240p</SelectItem>
@@ -288,15 +244,17 @@ const VideoSettings = ({
   );
 };
 
-const DownloadProgress = ({ item }: { item: VideoDownloadItem | null }) => {
-  return item && !item.hasError ? (
-    <div className="text-black">
-      {item.isFinished
-        ? "Download finished!"
-        : `Downloading... ${item.progressString || "0%"}`}
-    </div>
-  ) : undefined;
-};
+const DownloadProgress = memo(
+  ({ item }: { item: VideoDownloadItem | null }) => {
+    return item && !item.hasError ? (
+      <div className="text-black">
+        {item.isFinished
+          ? "Download finished!"
+          : `Downloading... ${item.progressString || "0%"}`}
+      </div>
+    ) : undefined;
+  }
+);
 
 const DownloadError = ({ item }: { item: VideoDownloadItem | null }) => {
   return item && item.hasError ? (
