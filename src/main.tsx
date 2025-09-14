@@ -4,10 +4,10 @@ import App from "./App";
 import { HeroUIProvider } from "@heroui/react";
 import { setup, DefaultsContext } from "./lib/default-options";
 import { createStore } from "./store/store";
-import { createSettings, read } from "./lib/settings";
+import { File } from "./lib/fs/settings";
 
-await createSettings();
-const settings = await read();
+await File.create();
+const settings = await File.read();
 
 createStore({
   settings: {

@@ -9,72 +9,9 @@ import z from "zod";
 import {
   VideoHeightConstraintValues,
   VideoHeightValues,
-} from "../hooks/download-video";
+} from "../../hooks/download-video";
 
-export async function defaultSettings(): Promise<SettingsSchema> {
-  return {
-    audio: {
-      isWorstQuality: false,
-    },
-    video: {
-      height: "360",
-      heightConstraint: "=",
-    },
-    general: {
-      outputPath: await path.downloadDir(),
-    },
-  };
-}
-
-export async function createSettings() {
-  mkdir("data", {
-    baseDir: BaseDirectory.AppData,
-    recursive: true,
-  });
-
-  try {
-    await writeTextFile(
-      "data/settings.json",
-      JSON.stringify(await defaultSettings(), null, 2),
-      {
-        baseDir: BaseDirectory.AppData,
-        createNew: true,
-      }
-    );
-  } catch (e) {
-    // File already exists, do nothing.
-  }
-}
-
-export async function read(): Promise<SettingsSchema> {
-  let result: SettingsSchema;
-
-  try {
-    const file = await readTextFile("data/settings.json", {
-      baseDir: BaseDirectory.AppData,
-    });
-
-    result = SettingsSchema.parse(JSON.parse(file));
-  } catch (e) {
-    console.log(e);
-    throw e;
-  }
-
-  return result;
-}
-
-export async function write(data: SettingsSchema): Promise<void> {
-  try {
-    SettingsSchema.parse(data);
-
-    await writeTextFile("data/settings.json", JSON.stringify(data, null, 2), {
-      baseDir: BaseDirectory.AppData,
-    });
-  } catch (e) {
-    console.log(e);
-    throw e;
-  }
-}
+const defaultDownloadDir = await path.downloadDir();
 
 const AudioSettingsSchema = z.object({
   isWorstQuality: z.boolean(),
@@ -112,6 +49,68 @@ const SettingsSchema = z.object({
 
 type SettingsSchema = z.infer<typeof SettingsSchema>;
 
+export class File {
+  static async defaults(): Promise<Settings> {
+    const hello = new Settings({
+      general: new GeneralSettings({
+        outputPath: defaultDownloadDir,
+      }),
+    });
+
+    return hello;
+  }
+
+  static async create() {
+    mkdir("data", {
+      baseDir: BaseDirectory.AppData,
+      recursive: true,
+    });
+
+    try {
+      await writeTextFile(
+        "data/settings.json",
+        JSON.stringify(await File.defaults(), null, 2),
+        {
+          baseDir: BaseDirectory.AppData,
+          createNew: true,
+        }
+      );
+    } catch (e) {
+      // File already exists, do nothing.
+    }
+  }
+
+  static async read(): Promise<SettingsSchema> {
+    let result: SettingsSchema;
+
+    try {
+      const file = await readTextFile("data/settings.json", {
+        baseDir: BaseDirectory.AppData,
+      });
+
+      result = SettingsSchema.parse(JSON.parse(file));
+    } catch (e) {
+      console.log(e);
+      throw e;
+    }
+
+    return result;
+  }
+
+  static async write(data: SettingsSchema): Promise<void> {
+    try {
+      SettingsSchema.parse(data);
+
+      await writeTextFile("data/settings.json", JSON.stringify(data, null, 2), {
+        baseDir: BaseDirectory.AppData,
+      });
+    } catch (e) {
+      console.log(e);
+      throw e;
+    }
+  }
+}
+
 class VideoSettings implements VideoSettingsSchema {
   height: VideoHeightValues = "360";
   heightConstraint: VideoHeightConstraintValues = "=";
@@ -133,14 +132,7 @@ class GeneralSettings implements GeneralSettingsSchema {
   outputPath = "";
 
   constructor(data?: DeepPartial<GeneralSettingsSchema>) {
-    path
-      .downloadDir()
-      .then((path) => {
-        this.outputPath = path;
-      })
-      .then(() => {
-        mergeClassArgs(GeneralSettingsSchema, this, data);
-      });
+    mergeClassArgs(GeneralSettingsSchema, this, data);
   }
 }
 
@@ -154,7 +146,7 @@ class Settings implements SettingsSchema {
     this.video = new VideoSettings(data?.video);
     this.general = new GeneralSettings(data?.general);
 
-    mergeClassArgs(SettingsSchema, this, data);
+    SettingsSchema.parse(this);
   }
 }
 
