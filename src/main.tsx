@@ -4,15 +4,17 @@ import App from "./App";
 import { HeroUIProvider } from "@heroui/react";
 import { setup, DefaultsContext } from "./lib/default-options";
 import { createStore } from "./store/store";
+import { createSettings, read } from "./lib/settings";
+
+await createSettings();
+const settings = await read();
 
 createStore({
-  general: { url: "bajs", outputPath: "haha" },
-  audio: {
-    isWorstQuality: true,
+  settings: {
+    ...settings,
   },
-  video: {
-    height: "240",
-    heightConstraint: "=",
+  app: {
+    url: "",
   },
 });
 

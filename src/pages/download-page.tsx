@@ -25,7 +25,7 @@ import { useStore } from "../store/store";
 
 export function DownloadPage() {
   const defaults = useContext(DefaultsContext);
-  const url = useStore((state) => state.settings.general.url);
+  const url = useStore((state) => state.app.url);
   const isWorstQuality = useStore(
     (state) => state.settings.audio.isWorstQuality
   );
@@ -79,7 +79,7 @@ interface UrlInputProps {
 }
 
 const UrlInput = ({ isDisabled, onDownload }: UrlInputProps) => {
-  const { url, setUrl } = useStore((state) => state.settings.general);
+  const { url, setUrl } = useStore((state) => state.app);
 
   return (
     <div className="text-black flex flex-col gap-4">
