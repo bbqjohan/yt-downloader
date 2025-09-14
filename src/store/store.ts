@@ -1,5 +1,9 @@
 import { create, StateCreator } from "zustand";
 import { immer } from "zustand/middleware/immer";
+import {
+  VideoHeightConstraintValues,
+  VideoHeightValues,
+} from "../hooks/download-video";
 
 interface AudioSettingsState {
   isWorstQuality: boolean;
@@ -25,15 +29,23 @@ type VideoSettingsSlice = VideoSettingsState & VideoSettingsActions;
 
 interface GeneralSettingsState {
   outputPath: string;
-  url: string;
 }
 
 interface GeneralSettingsActions {
   setOutputPath: (value: string) => void;
-  setUrl: (value: string) => void;
 }
 
 type GeneralSettingsSlice = GeneralSettingsState & GeneralSettingsActions;
+
+interface AppState {
+  url: string;
+}
+
+interface AppActions {
+  setUrl: (value: string) => void;
+}
+
+type AppSlice = AppState & AppActions;
 
 interface SettingsSlice {
   audio: AudioSettingsSlice;
@@ -43,6 +55,7 @@ interface SettingsSlice {
 
 interface StoreState {
   settings: SettingsSlice;
+  app: AppSlice;
 }
 
 export type ImmerStateCreator<T> = StateCreator<
@@ -66,15 +79,15 @@ const createAudioSettingsSlice: (
 const createVideoSettingsSlice: (
   data?: VideoSettingsState
 ) => ImmerStateCreator<VideoSettingsSlice> = (data) => (set) => ({
-  height: data?.height || "",
-  heightConstraint: data?.heightConstraint || "",
+  height: data?.height || "360",
+  heightConstraint: data?.heightConstraint || "=",
 
-  setHeight: (value: string) =>
+  setHeight: (value) =>
     set((state) => {
       state.settings.video.height = value;
     }),
 
-  setHeightConstraint: (value: string) =>
+  setHeightConstraint: (value) =>
     set((state) => {
       state.settings.video.heightConstraint = value;
     }),
@@ -84,24 +97,30 @@ const createGeneralSettingsSlice: (
   data?: GeneralSettingsState
 ) => ImmerStateCreator<GeneralSettingsSlice> = (data) => (set) => ({
   outputPath: data?.outputPath || "",
-  url: data?.url || "",
 
   setOutputPath: (value: string) =>
     set((state) => {
       state.settings.general.outputPath = value;
     }),
-
-  setUrl: (value: string) =>
-    set((state) => {
-      state.settings.general.url = value;
-    }),
 });
 
-const createSettingsSlice: (data?: {
-  audio: AudioSettingsState;
-  video: VideoSettingsState;
-  general: GeneralSettingsState;
-}) => ImmerStateCreator<SettingsSlice> =
+const createAppSlice: (data?: AppState) => ImmerStateCreator<AppSlice> =
+  (data) => (set) => ({
+    url: data?.url || "",
+
+    setUrl: (value: string) =>
+      set((state) => {
+        state.app.url = value;
+      }),
+  });
+
+const createSettingsSlice: (
+  data?: Partial<{
+    audio: AudioSettingsState;
+    video: VideoSettingsState;
+    general: GeneralSettingsState;
+  }>
+) => ImmerStateCreator<SettingsSlice> =
   (data) =>
   (...args) => ({
     audio: createAudioSettingsSlice(data?.audio)(...args),
@@ -109,25 +128,23 @@ const createSettingsSlice: (data?: {
     general: createGeneralSettingsSlice(data?.general)(...args),
   });
 
-// export const useStore = create<StoreState>()(
-//   immer((...args) => {
-//     return {
-//       settings: createSettingsSlice(...args),
-//     };
-//   })
-// );
-
-export let _useStore: ReturnType<ReturnType<typeof create<StoreState>>>;
+let _useStore: ReturnType<ReturnType<typeof create<StoreState>>>;
 
 export function createStore(data?: {
-  audio: AudioSettingsState;
-  video: VideoSettingsState;
-  general: GeneralSettingsState;
+  settings: {
+    audio: AudioSettingsState;
+    video: VideoSettingsState;
+    general: GeneralSettingsState;
+  };
+  app: AppState;
 }) {
   _useStore = create<StoreState>()(
     immer((...args) => {
       return {
-        settings: createSettingsSlice(data)(...args),
+        settings: createSettingsSlice({
+          ...data?.settings,
+        })(...args),
+        app: createAppSlice(data?.app)(...args),
       };
     })
   );
