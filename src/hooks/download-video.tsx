@@ -1,6 +1,7 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 import { DownloadEvent } from "../lib/download-engine";
+import { VideoHeightConstraints, VideoHeights } from "../lib/fs/settings";
 
 /**
  * Interface for the download invocation parameters.
@@ -9,6 +10,8 @@ interface DownloadInvokeParams {
   url: string;
   worstAudio: boolean;
   outputPath: string;
+  videoHeight: VideoHeights;
+  videoHeightConstraint: VideoHeightConstraints;
   onEvent: Channel<DownloadEvents>;
 }
 
@@ -19,19 +22,27 @@ export class DownloadParameters {
   url: string;
   worstAudio: boolean;
   outputPath: string;
+  videoHeight: VideoHeights;
+  videoHeightConstraint: VideoHeightConstraints;
 
   constructor({
     url,
     worstAudio = false,
     outputPath = "",
+    videoHeight = "360",
+    videoHeightConstraint = "=",
   }: {
     url: string;
     worstAudio?: boolean;
     outputPath?: string;
+    videoHeight?: VideoHeights;
+    videoHeightConstraint?: VideoHeightConstraints;
   }) {
     this.url = url;
     this.worstAudio = worstAudio;
     this.outputPath = outputPath;
+    this.videoHeight = videoHeight;
+    this.videoHeightConstraint = videoHeightConstraint;
   }
 }
 
@@ -186,6 +197,8 @@ export const useDownloadVideo = () => {
         url: downloadItem.parameters.url,
         worstAudio: downloadItem.parameters.worstAudio,
         outputPath: downloadItem.parameters.outputPath,
+        videoHeight: downloadItem.parameters.videoHeight,
+        videoHeightConstraint: downloadItem.parameters.videoHeightConstraint,
         onEvent: channel,
       });
 
