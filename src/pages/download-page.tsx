@@ -11,20 +11,19 @@ import {
   Tabs,
 } from "@heroui/react";
 import { OneColumnLayout } from "../layouts/one-column";
-import { memo, useCallback, useContext, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { Key } from "@react-types/shared";
-import {
-  isVideoHeight,
-  isVideoHeightConstraint,
-  useDownloadVideo,
-  VideoDownloadItem,
-} from "../hooks/download-video";
+import { useDownloadVideo, VideoDownloadItem } from "../hooks/download-video";
 import { open } from "@tauri-apps/plugin-dialog";
-import { DefaultsContext } from "../lib/default-options";
 import { useStore } from "../store/store";
+import {
+  VideoHeightConstraints,
+  VideoHeights,
+  VideoSettingsSchema,
+} from "../lib/fs/settings";
+import { ZodError } from "zod";
 
 export function DownloadPage() {
-  const defaults = useContext(DefaultsContext);
   const url = useStore((state) => state.app.url);
   const isWorstQuality = useStore(
     (state) => state.settings.audio.isWorstQuality
@@ -38,11 +37,13 @@ export function DownloadPage() {
   const downloadVideo = useDownloadVideo();
 
   const handleDownload = () => {
-    if (!isVideoHeight(videoHeight)) {
+    if (VideoSettingsSchema.shape.height.parse(videoHeight)) {
       throw Error(videoHeight + " is not a legitimate video height.");
     }
 
-    if (!isVideoHeightConstraint(videoHeightConstraint)) {
+    if (
+      VideoSettingsSchema.shape.heightConstraint.parse(videoHeightConstraint)
+    ) {
       throw Error(
         videoHeightConstraint + " is not a legitimate video height constraint."
       );
@@ -182,23 +183,32 @@ const VideoSettings = () => {
     [heightConstraint]
   );
 
+  const _heightError = useMemo(() => {
+    return VideoSettingsSchema.shape.height.safeParse(height).error instanceof
+      ZodError
+      ? "This is not a valid video resolution!"
+      : "";
+  }, [_height]);
+
+  const _heightConstraintError = useMemo(() => {
+    return VideoSettingsSchema.shape.heightConstraint.safeParse(
+      heightConstraint
+    ).error instanceof ZodError
+      ? "This is not a valid video constraint!"
+      : "";
+  }, [_heightConstraint]);
+
   const handleVideoHeight = useCallback((value: SharedSelection) => {
     if (value instanceof Set) {
-      const v = value.values().next().value;
-
-      if (typeof v === "string") {
-        setHeight(v);
-      }
+      setHeight(value.values().next().value as VideoHeights);
     }
   }, []);
 
   const handleVideoHeightConstraint = useCallback((value: SharedSelection) => {
     if (value instanceof Set) {
-      const v = value.values().next().value;
-
-      if (typeof v === "string") {
-        setHeightConstraint(v);
-      }
+      setHeightConstraint(
+        value.values().next().value as VideoHeightConstraints
+      );
     }
   }, []);
 
@@ -206,15 +216,18 @@ const VideoSettings = () => {
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <div className="text-sm px-1">Video resolution</div>
-        <div className="flex gap-4">
+        <div className="flex gap-4 items-start">
           <Select
             aria-label="Video resolution constraint"
             selectedKeys={_heightConstraint}
             onSelectionChange={handleVideoHeightConstraint}
             classNames={{
-              base: "flex-1 min-w-20",
+              base: "flex-1 min-w-32",
             }}
+            errorMessage={_heightConstraintError}
+            isInvalid={Boolean(_heightConstraintError)}
           >
+            <SelectItem key="ss">ss</SelectItem>
             <SelectItem key="=">=</SelectItem>
             <SelectItem key="<=">{"<="}</SelectItem>
             <SelectItem key=">=">{">="}</SelectItem>
@@ -223,7 +236,10 @@ const VideoSettings = () => {
             aria-label="Video resolution"
             selectedKeys={_height}
             onSelectionChange={handleVideoHeight}
+            isInvalid={Boolean(_heightError)}
+            errorMessage={_heightError}
           >
+            <SelectItem key="ss">ss</SelectItem>
             <SelectItem key="144">144p</SelectItem>
             <SelectItem key="240">240p</SelectItem>
             <SelectItem key="360">360p</SelectItem>

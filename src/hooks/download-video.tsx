@@ -1,6 +1,7 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 import { DownloadEvent } from "../lib/download-engine";
+import { VideoHeightConstraints, VideoHeights } from "../lib/fs/settings";
 
 /**
  * Interface for the download invocation parameters.
@@ -9,51 +10,9 @@ interface DownloadInvokeParams {
   url: string;
   worstAudio: boolean;
   outputPath: string;
-  videoHeight: VideoHeightValues;
-  videoHeightConstraint: VideoHeightConstraintValues;
+  videoHeight: VideoHeights;
+  videoHeightConstraint: VideoHeightConstraints;
   onEvent: Channel<DownloadEvents>;
-}
-
-export type VideoHeightValues =
-  | "144"
-  | "240"
-  | "360"
-  | "480"
-  | "720"
-  | "1080"
-  | "1440"
-  | "2160";
-
-export const VideoHeight: Record<VideoHeightValues, string> = {
-  "144": "144p",
-  "240": "240p",
-  "360": "360p",
-  "480": "480p",
-  "720": "720p",
-  "1080": "1080p",
-  "1440": "2160p",
-  "2160": "2160p",
-};
-
-export type VideoHeightConstraintValues = "=" | "<=" | ">=";
-
-export const VideoHeightConstraint: Record<
-  VideoHeightConstraintValues,
-  string
-> = {
-  "=": "=",
-  ">=": ">=",
-  "<=": "<=",
-};
-
-export function isVideoHeight(value: any): value is VideoHeightValues {
-  return !!VideoHeight[value as VideoHeightValues];
-}
-
-export function isVideoHeightConstraint(
-  value: any
-): value is VideoHeightConstraintValues {
-  return !!VideoHeightConstraint[value as VideoHeightConstraintValues];
 }
 
 /**
@@ -63,8 +22,8 @@ export class DownloadParameters {
   url: string;
   worstAudio: boolean;
   outputPath: string;
-  videoHeight: VideoHeightValues;
-  videoHeightConstraint: VideoHeightConstraintValues;
+  videoHeight: VideoHeights;
+  videoHeightConstraint: VideoHeightConstraints;
 
   constructor({
     url,
@@ -76,8 +35,8 @@ export class DownloadParameters {
     url: string;
     worstAudio?: boolean;
     outputPath?: string;
-    videoHeight?: VideoHeightValues;
-    videoHeightConstraint?: VideoHeightConstraintValues;
+    videoHeight?: VideoHeights;
+    videoHeightConstraint?: VideoHeightConstraints;
   }) {
     this.url = url;
     this.worstAudio = worstAudio;

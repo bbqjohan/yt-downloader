@@ -1,9 +1,6 @@
 import { create, StateCreator } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import {
-  VideoHeightConstraintValues,
-  VideoHeightValues,
-} from "../hooks/download-video";
+import { VideoHeightConstraints, VideoHeights } from "../lib/fs/settings";
 
 interface AudioSettingsState {
   isWorstQuality: boolean;
@@ -16,13 +13,13 @@ interface AudioSettingsActions {
 type AudioSettingsSlice = AudioSettingsState & AudioSettingsActions;
 
 interface VideoSettingsState {
-  height: string;
-  heightConstraint: string;
+  height: VideoHeights;
+  heightConstraint: VideoHeightConstraints;
 }
 
 interface VideoSettingsActions {
-  setHeight: (value: string) => void;
-  setHeightConstraint: (value: string) => void;
+  setHeight: (value: VideoHeights) => void;
+  setHeightConstraint: (value: VideoHeightConstraints) => void;
 }
 
 type VideoSettingsSlice = VideoSettingsState & VideoSettingsActions;

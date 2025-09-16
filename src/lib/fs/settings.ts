@@ -6,10 +6,6 @@ import {
   writeTextFile,
 } from "@tauri-apps/plugin-fs";
 import z from "zod";
-import {
-  VideoHeightConstraintValues,
-  VideoHeightValues,
-} from "../../hooks/download-video";
 
 const defaultDownloadDir = await path.downloadDir();
 
@@ -19,7 +15,7 @@ const AudioSettingsSchema = z.object({
 
 type AudioSettingsSchema = z.infer<typeof AudioSettingsSchema>;
 
-const VideoSettingsSchema = z.object({
+export const VideoSettingsSchema = z.object({
   height: z.literal([
     "144",
     "240",
@@ -33,6 +29,10 @@ const VideoSettingsSchema = z.object({
   heightConstraint: z.literal(["=", "<=", ">="]),
 });
 
+export type VideoHeights = z.infer<typeof VideoSettingsSchema.shape.height>;
+export type VideoHeightConstraints = z.infer<
+  typeof VideoSettingsSchema.shape.heightConstraint
+>;
 type VideoSettingsSchema = z.infer<typeof VideoSettingsSchema>;
 
 const GeneralSettingsSchema = z.object({
@@ -112,8 +112,8 @@ export class File {
 }
 
 class VideoSettings implements VideoSettingsSchema {
-  height: VideoHeightValues = "360";
-  heightConstraint: VideoHeightConstraintValues = "=";
+  height: VideoHeights = "360";
+  heightConstraint: VideoHeightConstraints = "=";
 
   constructor(data?: DeepPartial<VideoSettingsSchema>) {
     mergeClassArgs(VideoSettingsSchema, this, data);
