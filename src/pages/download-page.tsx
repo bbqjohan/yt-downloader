@@ -15,7 +15,7 @@ import { memo, useCallback, useMemo, useState } from "react";
 import { Key } from "@react-types/shared";
 import { useDownloadVideo, VideoDownloadItem } from "../hooks/download-video";
 import { open } from "@tauri-apps/plugin-dialog";
-import { useStore } from "../store/store";
+import { useStores } from "../store/stores";
 import {
   VideoHeightConstraints,
   VideoHeights,
@@ -24,14 +24,14 @@ import {
 import { ZodError } from "zod";
 
 export function DownloadPage() {
-  const url = useStore((state) => state.app.url);
-  const isWorstQuality = useStore(
-    (state) => state.settings.audio.isWorstQuality
+  const url = useStores().app((state) => state.app.url);
+  const isWorstQuality = useStores().settings(
+    (state) => state.audio.isWorstQuality
   );
-  const outputPath = useStore((state) => state.settings.general.outputPath);
-  const videoHeight = useStore((state) => state.settings.video.height);
-  const videoHeightConstraint = useStore(
-    (state) => state.settings.video.heightConstraint
+  const outputPath = useStores().settings((state) => state.general.outputPath);
+  const videoHeight = useStores().settings((state) => state.video.height);
+  const videoHeightConstraint = useStores().settings(
+    (state) => state.video.heightConstraint
   );
 
   const downloadVideo = useDownloadVideo();
@@ -79,8 +79,8 @@ interface UrlInputProps {
   onDownload: ButtonProps["onPress"];
 }
 
-const UrlInput = ({ isDisabled, onDownload }: UrlInputProps) => {
-  const { url, setUrl } = useStore((state) => state.app);
+const UrlInput = memo(({ isDisabled, onDownload }: UrlInputProps) => {
+  const { url, setUrl } = useStores().app((state) => state.app);
 
   return (
     <div className="text-black flex flex-col gap-4">
@@ -98,9 +98,9 @@ const UrlInput = ({ isDisabled, onDownload }: UrlInputProps) => {
       </div>
     </div>
   );
-};
+});
 
-const SettingsSection = () => {
+const SettingsSection = memo(() => {
   const [selectedTab, setSelectedTab] = useState<Key>("");
 
   return (
@@ -122,11 +122,11 @@ const SettingsSection = () => {
       </Tabs>
     </div>
   );
-};
+});
 
 const AudioSettings = () => {
-  const { isWorstQuality, setIsWorstQuality } = useStore(
-    (state) => state.settings.audio
+  const { isWorstQuality, setIsWorstQuality } = useStores().settings(
+    (state) => state.audio
   );
 
   return (
@@ -139,8 +139,8 @@ const AudioSettings = () => {
 };
 
 const GeneralSettings = () => {
-  const { outputPath, setOutputPath } = useStore(
-    (state) => state.settings.general
+  const { outputPath, setOutputPath } = useStores().settings(
+    (state) => state.general
   );
 
   const handleOutputPathSelect = async () => {
@@ -174,9 +174,8 @@ const GeneralSettings = () => {
 };
 
 const VideoSettings = () => {
-  const { height, setHeight, heightConstraint, setHeightConstraint } = useStore(
-    (state) => state.settings.video
-  );
+  const { height, setHeight, heightConstraint, setHeightConstraint } =
+    useStores().settings((state) => state.video);
   const _height = useMemo(() => [height], [height]);
   const _heightConstraint = useMemo(
     () => [heightConstraint],

@@ -1,5 +1,5 @@
 import "./App.css";
-import { DefaultSettingsPage } from "./pages/default-settings-page";
+import { DefaultSettingsPage } from "./pages/settings-page/page";
 import { DownloadPage } from "./pages/download-page";
 
 function App() {

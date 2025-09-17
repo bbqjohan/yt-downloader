@@ -7,13 +7,85 @@ import {
 } from "@tauri-apps/plugin-fs";
 import z from "zod";
 
-const defaultDownloadDir = await path.downloadDir();
+const DEFAULT_DOWNLOAD_DIR = await path.downloadDir();
 
-const AudioSettingsSchema = z.object({
-  isWorstQuality: z.boolean(),
-});
+/**
+ * Represents the settings file on the user's machine.
+ */
+export class File {
+  /**
+   * Creates and returns default data for the settings file.
+   *
+   * @returns Default data for the settings file.
+   */
+  static defaults(): Settings {
+    return new Settings();
+  }
 
-type AudioSettingsSchema = z.infer<typeof AudioSettingsSchema>;
+  /**
+   * Attempts to create the settings file. If it already exists, it does nothing.
+   */
+  static async create() {
+    mkdir("data", {
+      baseDir: BaseDirectory.AppData,
+      recursive: true,
+    });
+
+    try {
+      await writeTextFile(
+        "data/settings.json",
+        JSON.stringify(File.defaults(), null, 2),
+        {
+          baseDir: BaseDirectory.AppData,
+          createNew: true,
+        }
+      );
+    } catch (e) {
+      // File already exists, do nothing.
+    }
+  }
+
+  /**
+   * Attemps to read the settings file. Throws on failure.
+   *
+   * @returns The settings file, on a successful read.
+   */
+  static async read(): Promise<SettingsSchema> {
+    let result: SettingsSchema;
+
+    try {
+      const file = await readTextFile("data/settings.json", {
+        baseDir: BaseDirectory.AppData,
+      });
+
+      result = SettingsSchema.parse(JSON.parse(file));
+    } catch (e) {
+      console.log(e);
+      throw e;
+    }
+
+    return result;
+  }
+
+  /**
+   * Writes to the settings file. Overwrites the whole file, so be sure to pass in the full
+   * settings object.
+   *
+   * @param data Data to write to the settings file.
+   */
+  static async write(data: SettingsSchema): Promise<void> {
+    try {
+      SettingsSchema.parse(data);
+
+      await writeTextFile("data/settings.json", JSON.stringify(data, null, 2), {
+        baseDir: BaseDirectory.AppData,
+      });
+    } catch (e) {
+      console.log(e);
+      throw e;
+    }
+  }
+}
 
 export const VideoSettingsSchema = z.object({
   height: z.literal([
@@ -33,85 +105,15 @@ export type VideoHeights = z.infer<typeof VideoSettingsSchema.shape.height>;
 export type VideoHeightConstraints = z.infer<
   typeof VideoSettingsSchema.shape.heightConstraint
 >;
-type VideoSettingsSchema = z.infer<typeof VideoSettingsSchema>;
+export type VideoSettingsSchema = z.infer<typeof VideoSettingsSchema>;
 
-const GeneralSettingsSchema = z.object({
-  outputPath: z.string(),
-});
-
-type GeneralSettingsSchema = z.infer<typeof GeneralSettingsSchema>;
-
-const SettingsSchema = z.object({
-  audio: AudioSettingsSchema,
-  video: VideoSettingsSchema,
-  general: GeneralSettingsSchema,
-});
-
-type SettingsSchema = z.infer<typeof SettingsSchema>;
-
-export class File {
-  static async defaults(): Promise<Settings> {
-    const hello = new Settings({
-      general: new GeneralSettings({
-        outputPath: defaultDownloadDir,
-      }),
-    });
-
-    return hello;
-  }
-
-  static async create() {
-    mkdir("data", {
-      baseDir: BaseDirectory.AppData,
-      recursive: true,
-    });
-
-    try {
-      await writeTextFile(
-        "data/settings.json",
-        JSON.stringify(await File.defaults(), null, 2),
-        {
-          baseDir: BaseDirectory.AppData,
-          createNew: true,
-        }
-      );
-    } catch (e) {
-      // File already exists, do nothing.
-    }
-  }
-
-  static async read(): Promise<SettingsSchema> {
-    let result: SettingsSchema;
-
-    try {
-      const file = await readTextFile("data/settings.json", {
-        baseDir: BaseDirectory.AppData,
-      });
-
-      result = SettingsSchema.parse(JSON.parse(file));
-    } catch (e) {
-      console.log(e);
-      throw e;
-    }
-
-    return result;
-  }
-
-  static async write(data: SettingsSchema): Promise<void> {
-    try {
-      SettingsSchema.parse(data);
-
-      await writeTextFile("data/settings.json", JSON.stringify(data, null, 2), {
-        baseDir: BaseDirectory.AppData,
-      });
-    } catch (e) {
-      console.log(e);
-      throw e;
-    }
-  }
-}
-
-class VideoSettings implements VideoSettingsSchema {
+/**
+ * This class represents a part of the settings file shcema.
+ *
+ * Only includes defaulted data unless otherwise specified. As such, if you ever want the original
+ * default values of the settings, just make an instance without arguments.
+ */
+export class VideoSettings implements VideoSettingsSchema {
   height: VideoHeights = "360";
   heightConstraint: VideoHeightConstraints = "=";
 
@@ -120,7 +122,19 @@ class VideoSettings implements VideoSettingsSchema {
   }
 }
 
-class AudioSettings implements AudioSettingsSchema {
+export const AudioSettingsSchema = z.object({
+  isWorstQuality: z.boolean(),
+});
+
+export type AudioSettingsSchema = z.infer<typeof AudioSettingsSchema>;
+
+/**
+ * This class represents a part of the settings file shcema.
+ *
+ * Only includes defaulted data unless otherwise specified. As such, if you ever want the original
+ * default values of the settings, just make an instance without arguments.
+ */
+export class AudioSettings implements AudioSettingsSchema {
   isWorstQuality = false;
 
   constructor(data?: DeepPartial<AudioSettingsSchema>) {
@@ -128,15 +142,41 @@ class AudioSettings implements AudioSettingsSchema {
   }
 }
 
-class GeneralSettings implements GeneralSettingsSchema {
-  outputPath = "";
+export const GeneralSettingsSchema = z.object({
+  outputPath: z.string(),
+});
+
+export type GeneralSettingsSchema = z.infer<typeof GeneralSettingsSchema>;
+
+/**
+ * This class represents a part of the settings file shcema.
+ *
+ * Only includes defaulted data unless otherwise specified. As such, if you ever want the original
+ * default values of the settings, just make an instance without arguments.
+ */
+export class GeneralSettings implements GeneralSettingsSchema {
+  outputPath = DEFAULT_DOWNLOAD_DIR;
 
   constructor(data?: DeepPartial<GeneralSettingsSchema>) {
     mergeClassArgs(GeneralSettingsSchema, this, data);
   }
 }
 
-class Settings implements SettingsSchema {
+export const SettingsSchema = z.object({
+  audio: AudioSettingsSchema,
+  video: VideoSettingsSchema,
+  general: GeneralSettingsSchema,
+});
+
+export type SettingsSchema = z.infer<typeof SettingsSchema>;
+
+/**
+ * This class represents the entire settings file schema.
+ *
+ * Only includes defaulted data unless otherwise specified. As such, if you ever want the original
+ * default values of the settings, just make an instance without arguments.
+ */
+export class Settings implements SettingsSchema {
   audio: AudioSettings;
   video: VideoSettings;
   general: GeneralSettings;
@@ -150,7 +190,15 @@ class Settings implements SettingsSchema {
   }
 }
 
-function mergeClassArgs<T, S extends z.ZodObject>(
+/**
+ * Merges a class instance with optional data. Merged object is then parsed by Zod, and will
+ * throw if it doesn't adhere to the provided schema.
+ *
+ * @param schema - What schema to compare the merged object to.
+ * @param obj - The class instance to merge with optional data.
+ * @param data - Optional data to merge with the class instance.
+ */
+function mergeClassArgs<T extends object, S extends z.ZodObject>(
   schema: S,
   obj: T,
   data?: DeepPartial<z.infer<S>>
@@ -158,10 +206,12 @@ function mergeClassArgs<T, S extends z.ZodObject>(
   let keys = data ? Object.keys(data) : [];
 
   keys.forEach((key) => {
-    obj[key as keyof typeof obj] = (data as object)[
-      key as keyof typeof data
-    ] as (typeof obj)[keyof typeof obj];
+    if (Object.hasOwn(obj, key)) {
+      obj[key as keyof typeof obj] = (data as object)[
+        key as keyof typeof data
+      ] as (typeof obj)[keyof typeof obj];
+    }
   });
 
-  return schema.parse(obj);
+  schema.parse(obj);
 }

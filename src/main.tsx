@@ -2,13 +2,13 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { HeroUIProvider } from "@heroui/react";
-import { createStore } from "./store/store";
+import { createAllStores } from "./store/stores";
 import { File as SettingsFile } from "./lib/fs/settings";
 
 await SettingsFile.create();
 const settings = await SettingsFile.read();
 
-createStore({
+createAllStores({
   settings: {
     ...settings,
   },
