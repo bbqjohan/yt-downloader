@@ -11,6 +11,14 @@
     "dialog:default",
     "fs:default",
     {
+      "identifier": "fs:allow-stat",
+      "allow": [
+        {
+          "path": "**/*"
+        }
+      ]
+    },
+    {
       "identifier": "fs:allow-mkdir",
       "allow": [
         {

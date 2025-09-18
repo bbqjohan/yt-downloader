@@ -1,6 +1,7 @@
 import {
   Button,
   Checkbox,
+  Input,
   Select,
   SelectItem,
   SharedSelection,
@@ -11,7 +12,7 @@ import {
 import { BsArrowCounterclockwise } from "react-icons/bs";
 import { useStore as usePageStore, createStore } from "./store";
 import { useStores } from "../../store/stores";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Key } from "@react-types/shared";
 import {
   VideoHeightConstraints,
@@ -19,11 +20,14 @@ import {
   VideoSettingsSchema,
 } from "../../lib/fs/settings";
 import { ZodError } from "zod";
+import { open } from "@tauri-apps/plugin-dialog";
+import { stat } from "@tauri-apps/plugin-fs";
+import "./css.css";
 
 createStore();
 
 export function DefaultSettingsPage() {
-  const [selectedTab, setSelectedTab] = useState<Key>("video");
+  const [selectedTab, setSelectedTab] = useState<Key>("general");
 
   return (
     <div className="grid grid-rows-[4rem_1fr] grid-cols-[200px_1fr] w-full max-w-4xl h-screen">
@@ -52,7 +56,7 @@ const Sidebar = ({
           tab: "justify-start",
         }}
       >
-        {/* <Tab key="general" title="General settings"></Tab> */}
+        <Tab key="general" title="General settings"></Tab>
         <Tab key="audio" title="Audio settings"></Tab>
         <Tab key="video" title="Video settings"></Tab>
       </Tabs>
@@ -67,6 +71,7 @@ const Content = ({
 }) => {
   return (
     (selectedTab === "audio" && <AudioSettings />) ||
+    (selectedTab === "general" && <GeneralSettings />) ||
     (selectedTab === "video" && <VideoSettings />)
   );
 };
@@ -97,7 +102,7 @@ const AudioQuality = () => {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex gap-2 items-center">
-        Audio quality{" "}
+        <div className="text-sm px-1">Audio quality</div>
         {isWorstQualityChanged && (
           <Button isIconOnly variant="light" onPress={resetIsWorstAudioQuality}>
             <BsArrowCounterclockwise />
@@ -230,6 +235,105 @@ const VideoHeightContraint = () => {
           <SelectItem key="<=">{"<="}</SelectItem>
           <SelectItem key=">=">{">="}</SelectItem>
         </Select>
+      </div>
+    </div>
+  );
+};
+
+const GeneralSettings = () => {
+  return (
+    <div className="flex flex-col gap-4 overflow-y-auto p-4">
+      {/* Content */}
+      <h1 className="text-2xl">Default general settings</h1>
+      <OutputPath />
+    </div>
+  );
+};
+
+const OutputPath = () => {
+  const { outputPath, setOutputPath } = usePageStore((state) => state.general);
+  const hasChanged = usePageStore((s) => s.general.hasOutputPathChanged());
+  const originalVal = useStores().settings((s) => s.general.outputPath);
+  const [error, setError] = useState("");
+  const [checkingPath, setCheckingPath] = useState(false);
+
+  useEffect(() => {
+    let ongoing = true;
+
+    async function tryPath() {
+      try {
+        const entry = await stat(outputPath);
+
+        if (entry.isFile) {
+          throw "";
+        }
+
+        setError("");
+      } catch (e: any) {
+        if (typeof e === "string") {
+          setError("This path does not point to a directory.");
+        } else {
+          setError("Error: " + e);
+        }
+      }
+
+      setCheckingPath(false);
+    }
+
+    setTimeout(() => {
+      if (ongoing) {
+        tryPath();
+      }
+    }, 1250);
+
+    setCheckingPath(true);
+
+    return () => {
+      ongoing = false;
+    };
+  }, [outputPath]);
+
+  const reset = () => {
+    setOutputPath(originalVal);
+  };
+
+  const handleOutputPathSelect = async () => {
+    const dirPath = await open({
+      multiple: false,
+      directory: true,
+    });
+
+    if (dirPath) {
+      setOutputPath(dirPath);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex gap-2 items-center">
+        <div className="text-sm px-1">Output directory</div>
+        {hasChanged && (
+          <Button isIconOnly variant="light" onPress={reset}>
+            <BsArrowCounterclockwise />
+          </Button>
+        )}
+      </div>
+      <div className="flex gap-4">
+        <Input
+          value={outputPath}
+          onValueChange={setOutputPath}
+          errorMessage={error}
+          isInvalid={error !== ""}
+        />
+        <Button
+          onPress={handleOutputPathSelect}
+          variant="solid"
+          color="primary"
+        >
+          <div className="flex flex-col items-centers justify-center">
+            {checkingPath ? <div className="loader scale-150"></div> : "Select"}
+          </div>
+        </Button>
       </div>
     </div>
   );
