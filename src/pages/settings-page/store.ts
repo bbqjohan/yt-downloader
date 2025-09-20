@@ -3,15 +3,16 @@ import { immer } from "zustand/middleware/immer";
 import {
   AudioSettings,
   GeneralSettings,
-  SettingsSchema,
+  Settings,
   VideoSettings,
 } from "../../lib/fs/settings";
 import {
   AudioSettingsSlice as SettingsAudioSlice,
   GeneralSettingsSlice as SettingsGeneralSlice,
   VideoSettingsSlice as SettingsVideoSlice,
-  getState as getSettingsState,
+  useStore as useSettingsStore,
 } from "../../store/settings";
+import { hasChanged } from "../../store/stores";
 
 type ImmerStateCreator<T, S> = StateCreator<
   S,
@@ -24,6 +25,7 @@ type ImmerState<T> = ImmerStateCreator<T, StoreState>;
 
 interface AudioSlice extends SettingsAudioSlice {
   hasIsWorstQualityChanged: () => boolean;
+  compare: () => boolean;
 }
 
 const createAudioSlice =
@@ -38,14 +40,18 @@ const createAudioSlice =
 
     hasIsWorstQualityChanged: () => {
       return (
-        get().audio.isWorstQuality !== getSettingsState().audio.isWorstQuality
+        get().audio.isWorstQuality !==
+        useSettingsStore.getState().audio.isWorstQuality
       );
     },
+
+    compare: () => hasChanged(get().audio),
   });
 
 interface VideoSlice extends SettingsVideoSlice {
   hasHeightChanged: () => boolean;
   hasHeightConstraintChanged: () => boolean;
+  compare: () => boolean;
 }
 
 const createVideoSlice =
@@ -64,19 +70,22 @@ const createVideoSlice =
       }),
 
     hasHeightChanged: () => {
-      return get().video.height !== getSettingsState().video.height;
+      return get().video.height !== useSettingsStore.getState().video.height;
     },
 
     hasHeightConstraintChanged: () => {
       return (
         get().video.heightConstraint !==
-        getSettingsState().video.heightConstraint
+        useSettingsStore.getState().video.heightConstraint
       );
     },
+
+    compare: () => hasChanged(get().video),
   });
 
 interface GeneralSlice extends SettingsGeneralSlice {
   hasOutputPathChanged: () => boolean;
+  compare: () => boolean;
 }
 
 const createGeneralSlice =
@@ -90,8 +99,13 @@ const createGeneralSlice =
       }),
 
     hasOutputPathChanged() {
-      return get().general.outputPath !== getSettingsState().general.outputPath;
+      return (
+        get().general.outputPath !==
+        useSettingsStore.getState().general.outputPath
+      );
     },
+
+    compare: () => hasChanged(get().general),
   });
 
 interface StoreState {
@@ -102,7 +116,7 @@ interface StoreState {
 
 let _useStore: ReturnType<ReturnType<typeof create<StoreState>>>;
 
-export function createStore(data?: SettingsSchema) {
+export function createStore(data?: Settings) {
   _useStore = create<StoreState>()(
     immer((...args) => {
       return {
@@ -119,3 +133,24 @@ export function createStore(data?: SettingsSchema) {
 export function useStore<U>(fn: (state: StoreState) => U): U {
   return _useStore(fn);
 }
+useStore.getState = () => {
+  return _useStore.getState();
+};
+useStore.setState = (newState: StoreState) => {
+  _useStore.setState((state) => {
+    return {
+      audio: {
+        ...state.audio,
+        ...newState.audio,
+      },
+      video: {
+        ...state.video,
+        ...newState.video,
+      },
+      general: {
+        ...state.general,
+        ...newState.general,
+      },
+    };
+  });
+};

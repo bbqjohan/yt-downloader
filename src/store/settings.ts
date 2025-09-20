@@ -5,6 +5,7 @@ import {
   AudioSettingsSchema,
   GeneralSettings,
   GeneralSettingsSchema,
+  Settings,
   SettingsSchema,
   VideoHeightConstraints,
   VideoHeights,
@@ -115,6 +116,25 @@ export function useStore<U>(fn: (state: StoreState) => U): U {
   return _useStore(fn);
 }
 
-export function getState() {
+useStore.setState = (newState: Settings) => {
+  _useStore.setState((state) => {
+    return {
+      audio: {
+        ...state.audio,
+        ...newState.audio,
+      },
+      video: {
+        ...state.video,
+        ...newState.video,
+      },
+      general: {
+        ...state.general,
+        ...newState.general,
+      },
+    };
+  });
+};
+
+useStore.getState = () => {
   return _useStore.getState();
-}
+};
