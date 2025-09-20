@@ -10,11 +10,13 @@ import {
   TabsProps,
 } from "@heroui/react";
 import { BsArrowCounterclockwise } from "react-icons/bs";
-import { useStore as usePageStore, createStore } from "./store";
+import { useStore as usePageStore } from "./store";
 import { useStores } from "../../store/stores";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Key } from "@react-types/shared";
 import {
+  Settings,
+  File as SettingsFile,
   VideoHeightConstraints,
   VideoHeights,
   VideoSettingsSchema,
@@ -24,19 +26,67 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { stat } from "@tauri-apps/plugin-fs";
 import "./css.css";
 
-createStore();
-
 export function DefaultSettingsPage() {
   const [selectedTab, setSelectedTab] = useState<Key>("general");
 
   return (
-    <div className="grid grid-rows-[4rem_1fr] grid-cols-[200px_1fr] w-full max-w-4xl h-screen">
-      <div className="flex col-span-2 p-4">{/* Top bar */}</div>
-      <Sidebar selectedKey={selectedTab} onSelectionChange={setSelectedTab} />
-      <Content selectedTab={selectedTab} />
+    <div className="flex justify-center">
+      <div className="grid grid-rows-[4rem_1fr] grid-cols-[200px_1fr] w-full max-w-4xl h-screen">
+        <Topbar />
+        <Sidebar selectedKey={selectedTab} onSelectionChange={setSelectedTab} />
+        <Content selectedTab={selectedTab} />
+      </div>
     </div>
   );
 }
+
+const Topbar = () => {
+  const [newState, setNewState] = useState<Settings>();
+  const [updating, setUpdating] = useState(false);
+  const hasChanged = usePageStore(
+    (s) => s.video.compare() || s.audio.compare() || s.general.compare()
+  );
+
+  useEffect(() => {
+    if (newState) {
+      const updateSettings = async () => {
+        await SettingsFile.write(newState);
+        useStores().settings.setState(newState);
+        setNewState(undefined);
+        setUpdating(false);
+      };
+
+      updateSettings();
+      setUpdating(true);
+    }
+  }, [newState]);
+
+  const saveSettings = () => {
+    const newState = JSON.parse(
+      JSON.stringify({
+        ...usePageStore.getState(),
+      })
+    );
+
+    setNewState(newState);
+  };
+
+  return (
+    <div className="flex col-span-full p-4 border-b-1 border-gray-300 items-center">
+      <div className="grow"></div>
+      <div>
+        <Button
+          variant="solid"
+          color="primary"
+          onPress={saveSettings}
+          isDisabled={updating || !hasChanged}
+        >
+          Apply
+        </Button>
+      </div>
+    </div>
+  );
+};
 
 const Sidebar = ({
   selectedKey,
@@ -243,7 +293,6 @@ const VideoHeightContraint = () => {
 const GeneralSettings = () => {
   return (
     <div className="flex flex-col gap-4 overflow-y-auto p-4">
-      {/* Content */}
       <h1 className="text-2xl">Default general settings</h1>
       <OutputPath />
     </div>
