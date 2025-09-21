@@ -73,7 +73,9 @@ const Topbar = () => {
 
   return (
     <div className="flex col-span-full p-4 border-b-1 border-gray-300 items-center">
-      <div className="grow"></div>
+      <div className="grow">
+        <Button>Back</Button>
+      </div>
       <div>
         <Button
           variant="solid"
