@@ -2,6 +2,11 @@ import {
   Button,
   Checkbox,
   Input,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
   Select,
   SelectItem,
   SharedSelection,
@@ -9,7 +14,7 @@ import {
   Tabs,
   TabsProps,
 } from "@heroui/react";
-import { BsArrowCounterclockwise } from "react-icons/bs";
+import { BsArrowCounterclockwise, BsArrowLeft } from "react-icons/bs";
 import { useStore as usePageStore } from "./store";
 import { useStores } from "../../store/stores";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -17,6 +22,7 @@ import { Key } from "@react-types/shared";
 import {
   Settings,
   File as SettingsFile,
+  SettingsSchema,
   VideoHeightConstraints,
   VideoHeights,
   VideoSettingsSchema,
@@ -25,13 +31,14 @@ import { ZodError } from "zod";
 import { open } from "@tauri-apps/plugin-dialog";
 import { stat } from "@tauri-apps/plugin-fs";
 import "./css.css";
+import { useNavigate } from "react-router";
 
 export function DefaultSettingsPage() {
   const [selectedTab, setSelectedTab] = useState<Key>("general");
 
   return (
     <div className="flex justify-center">
-      <div className="grid grid-rows-[4rem_1fr] grid-cols-[200px_1fr] w-full max-w-4xl h-screen">
+      <div className="grid grid-rows-[4rem_1fr] grid-cols-[200px_1fr] w-full max-w-4xl h-screen px-2">
         <Topbar />
         <Sidebar selectedKey={selectedTab} onSelectionChange={setSelectedTab} />
         <Content selectedTab={selectedTab} />
@@ -40,50 +47,119 @@ export function DefaultSettingsPage() {
   );
 }
 
-const Topbar = () => {
+function useSettings() {
   const [newState, setNewState] = useState<Settings>();
-  const [updating, setUpdating] = useState(false);
-  const hasChanged = usePageStore(
-    (s) => s.video.compare() || s.audio.compare() || s.general.compare()
-  );
+  const [isWriting, setIsWriting] = useState(false);
+  const [promise, setPromise] = useState<Promise<void>>();
 
   useEffect(() => {
+    let mounted = true;
+
     if (newState) {
       const updateSettings = async () => {
-        await SettingsFile.write(newState);
-        useStores().settings.setState(newState);
-        setNewState(undefined);
-        setUpdating(false);
+        try {
+          await SettingsFile.write(newState);
+          useStores().settings.setState(newState);
+        } catch (e: any) {
+          // Do nothing.
+        }
+
+        if (mounted) {
+          setNewState(undefined);
+          setIsWriting(false);
+        }
       };
 
-      updateSettings();
-      setUpdating(true);
+      setPromise(updateSettings());
+      setIsWriting(true);
     }
+
+    return () => {
+      mounted = false;
+    };
   }, [newState]);
 
-  const saveSettings = () => {
-    const newState = JSON.parse(
-      JSON.stringify({
-        ...usePageStore.getState(),
-      })
-    );
-
+  const write = (newState: Settings) => {
+    SettingsSchema.parse(newState);
     setNewState(newState);
   };
 
+  return {
+    newState,
+    isWriting,
+    promise,
+    write,
+  };
+}
+
+const Topbar = () => {
+  const hasUnsavedChanges = usePageStore(usePageStore.hasChanged);
+  const settings = useSettings();
+  const [openModal, setOpenModal] = useState(false);
+  const navigate = useNavigate();
+
+  const applySettings = () => {
+    settings.write(
+      JSON.parse(
+        JSON.stringify({
+          ...usePageStore.getState(),
+        })
+      )
+    );
+  };
+
+  const onPageLeave = () => {
+    if (hasUnsavedChanges) {
+      setOpenModal(true);
+    } else {
+      navigate("/");
+    }
+  };
+
+  const onModalClose = () => {
+    setOpenModal(false);
+  };
+
+  const onDiscardChanges = () => {
+    setOpenModal(false);
+    navigate("/");
+  };
+
+  useEffect(() => {
+    if (settings.promise) {
+      settings.promise.then(() => {
+        setOpenModal(false);
+        navigate("/");
+      });
+    }
+  }, [settings.promise]);
+
   return (
-    <div className="flex col-span-full p-4 border-b-1 border-gray-300 items-center">
-      <div className="grow"></div>
+    <div className="flex col-span-full py-4 border-b-1 border-gray-300 items-center">
+      <div className="grow">
+        {/* <Link to="/"> */}
+        <Button variant="light" onPress={onPageLeave}>
+          <BsArrowLeft />
+          Go back
+        </Button>
+        {/* </Link> */}
+      </div>
       <div>
         <Button
           variant="solid"
           color="primary"
-          onPress={saveSettings}
-          isDisabled={updating || !hasChanged}
+          onPress={applySettings}
+          isDisabled={settings.isWriting || !hasUnsavedChanges}
         >
           Apply
         </Button>
       </div>
+      <GoBackModal
+        isOpen={openModal}
+        onClose={onModalClose}
+        onDiscard={onDiscardChanges}
+        onSave={applySettings}
+      />
     </div>
   );
 };
@@ -96,7 +172,7 @@ const Sidebar = ({
   onSelectionChange: TabsProps["onSelectionChange"];
 }) => {
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="flex flex-col gap-4 py-4">
       <Tabs
         variant="light"
         selectedKey={selectedKey}
@@ -120,15 +196,17 @@ const Content = ({
   selectedTab: TabsProps["selectedKey"];
 }) => {
   return (
-    (selectedTab === "audio" && <AudioSettings />) ||
-    (selectedTab === "general" && <GeneralSettings />) ||
-    (selectedTab === "video" && <VideoSettings />)
+    <div className="py-4 pl-4 ">
+      {(selectedTab === "audio" && <AudioSettings />) ||
+        (selectedTab === "general" && <GeneralSettings />) ||
+        (selectedTab === "video" && <VideoSettings />)}
+    </div>
   );
 };
 
 const AudioSettings = () => {
   return (
-    <div className="flex flex-col gap-4 overflow-y-auto p-4">
+    <div className="flex flex-col gap-4 overflow-y-auto h-full">
       {/* Content */}
       <h1 className="text-2xl">Default audio settings</h1>
       <AudioQuality />
@@ -170,7 +248,7 @@ const AudioQuality = () => {
 
 const VideoSettings = () => {
   return (
-    <div className="flex flex-col gap-4 overflow-y-auto p-4">
+    <div className="flex flex-col gap-4 overflow-y-auto h-full">
       {/* Content */}
       <h1 className="text-2xl">Default video settings</h1>
       <VideoHeight />
@@ -292,7 +370,7 @@ const VideoHeightContraint = () => {
 
 const GeneralSettings = () => {
   return (
-    <div className="flex flex-col gap-4 overflow-y-auto p-4">
+    <div className="flex flex-col gap-4 overflow-y-auto h-full">
       <h1 className="text-2xl">Default general settings</h1>
       <OutputPath />
     </div>
@@ -385,5 +463,48 @@ const OutputPath = () => {
         </Button>
       </div>
     </div>
+  );
+};
+
+const GoBackModal = ({
+  isOpen,
+  onClose,
+  onDiscard,
+  onSave,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onDiscard: () => void;
+  onSave: () => void;
+}) => {
+  return (
+    <Modal
+      isDismissable={false}
+      isKeyboardDismissDisabled={true}
+      isOpen={isOpen}
+      onClose={onClose}
+    >
+      <ModalContent>
+        <>
+          <ModalHeader className="flex flex-col gap-1">
+            Unsaved changes
+          </ModalHeader>
+          <ModalBody>
+            <p>
+              You have made changes to the settings that's not been saved yet.
+              Do you wish to save before leaving this page?
+            </p>
+          </ModalBody>
+          <ModalFooter>
+            <Button color="danger" variant="light" onPress={onDiscard}>
+              Discard changes
+            </Button>
+            <Button color="primary" onPress={onSave}>
+              Save changes
+            </Button>
+          </ModalFooter>
+        </>
+      </ModalContent>
+    </Modal>
   );
 };

@@ -1,9 +1,8 @@
 import "./App.css";
-import { DefaultSettingsPage } from "./pages/settings-page/page";
-import { DownloadPage } from "./pages/download-page";
+import { Outlet } from "react-router";
 
 function App() {
-  return <DefaultSettingsPage />;
+  return <Outlet />;
 }
 
 export default App;
