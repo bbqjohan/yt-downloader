@@ -136,7 +136,7 @@ export function useStore<U>(fn: (state: StoreState) => U): U {
 useStore.getState = () => {
   return _useStore.getState();
 };
-useStore.setState = (newState: StoreState) => {
+useStore.replaceState = (newState: Settings) => {
   _useStore.setState((state) => {
     return {
       audio: {
@@ -153,4 +153,9 @@ useStore.setState = (newState: StoreState) => {
       },
     };
   });
+};
+useStore.hasChanged = (state: StoreState) => {
+  return (
+    state.video.compare() || state.audio.compare() || state.general.compare()
+  );
 };

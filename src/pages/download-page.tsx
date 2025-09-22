@@ -22,6 +22,8 @@ import {
   VideoSettingsSchema,
 } from "../lib/fs/settings";
 import { ZodError } from "zod";
+import { Link } from "react-router";
+import { BiSolidCog } from "react-icons/bi";
 
 export function DownloadPage() {
   const url = useStores().app((state) => state.app.url);
@@ -60,7 +62,19 @@ export function DownloadPage() {
 
   return (
     <OneColumnLayout>
-      <div className="flex flex-col gap-4">
+      <div className="flex py-4 border-gray-300 items-center justify-end">
+        <Link to="settings">
+          <Button
+            isIconOnly
+            className="text-2xl"
+            variant="light"
+            color="default"
+          >
+            <BiSolidCog />
+          </Button>
+        </Link>
+      </div>
+      <div className="flex flex-col gap-4 h-full">
         <UrlInput
           onDownload={handleDownload}
           isDisabled={downloadVideo.downloadItem?.isStarted || false}
