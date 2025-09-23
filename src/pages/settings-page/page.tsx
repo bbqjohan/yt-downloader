@@ -23,10 +23,10 @@ import {
 } from "../../lib/fs/settings";
 import { open } from "@tauri-apps/plugin-dialog";
 import { stat } from "@tauri-apps/plugin-fs";
-import "./css.css";
 import { useNavigate } from "react-router";
 import { VideoHeightSelect } from "../../components/video-height-select";
 import { VideoHeightConstraintSelect } from "../../components/video-height-constraint-select";
+import { VideoOutputPath } from "../../components/video-output-path";
 
 export function DefaultSettingsPage() {
   const [selectedTab, setSelectedTab] = useState<Key>("general");
@@ -322,58 +322,9 @@ const OutputPath = () => {
   const { outputPath, setOutputPath } = usePageStore((state) => state.general);
   const hasChanged = usePageStore((s) => s.general.hasOutputPathChanged());
   const originalVal = useStores().settings((s) => s.general.outputPath);
-  const [error, setError] = useState("");
-  const [checkingPath, setCheckingPath] = useState(false);
-
-  useEffect(() => {
-    let ongoing = true;
-
-    async function tryPath() {
-      try {
-        const entry = await stat(outputPath);
-
-        if (entry.isFile) {
-          throw "";
-        }
-
-        setError("");
-      } catch (e: any) {
-        if (typeof e === "string") {
-          setError("This path does not point to a directory.");
-        } else {
-          setError("Error: " + e);
-        }
-      }
-
-      setCheckingPath(false);
-    }
-
-    setTimeout(() => {
-      if (ongoing) {
-        tryPath();
-      }
-    }, 1250);
-
-    setCheckingPath(true);
-
-    return () => {
-      ongoing = false;
-    };
-  }, [outputPath]);
 
   const reset = () => {
     setOutputPath(originalVal);
-  };
-
-  const handleOutputPathSelect = async () => {
-    const dirPath = await open({
-      multiple: false,
-      directory: true,
-    });
-
-    if (dirPath) {
-      setOutputPath(dirPath);
-    }
   };
 
   return (
@@ -386,23 +337,7 @@ const OutputPath = () => {
           </Button>
         )}
       </div>
-      <div className="flex gap-4">
-        <Input
-          value={outputPath}
-          onValueChange={setOutputPath}
-          errorMessage={error}
-          isInvalid={error !== ""}
-        />
-        <Button
-          onPress={handleOutputPathSelect}
-          variant="solid"
-          color="primary"
-        >
-          <div className="flex flex-col items-centers justify-center">
-            {checkingPath ? <div className="loader scale-150"></div> : "Select"}
-          </div>
-        </Button>
-      </div>
+      <VideoOutputPath value={outputPath} setValue={setOutputPath} />
     </div>
   );
 };

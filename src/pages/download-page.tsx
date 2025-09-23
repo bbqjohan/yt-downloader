@@ -19,6 +19,7 @@ import { Link } from "react-router";
 import { BiSolidCog } from "react-icons/bi";
 import { VideoHeightSelect } from "../components/video-height-select";
 import { VideoHeightConstraintSelect } from "../components/video-height-constraint-select";
+import { VideoOutputPath } from "../components/video-output-path";
 
 export function DownloadPage() {
   const url = useStores().app((state) => state.app.url);
@@ -166,17 +167,7 @@ const GeneralSettings = () => {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <div className="flex gap-4">
-          <Input
-            label="Output directory"
-            value={outputPath}
-            onValueChange={setOutputPath}
-          />
-          <Button onPress={handleOutputPathSelect}>Select</Button>
-        </div>
-        <div className="text-xs px-1">
-          Any directory in the path that doesn't exist will be created.
-        </div>
+        <VideoOutputPath value={outputPath} setValue={setOutputPath} />
       </div>
     </div>
   );

@@ -79,9 +79,6 @@ export const VideoHeightConstraintSelect = ({
       onSelectionChange={onSelectionChange}
       isInvalid={isInvalid ?? Boolean(_heightError)}
       errorMessage={_heightError}
-      description="Not all videos have all resolutions available. The selected resolution
-          will be used if available, otherwise, the closest available resolution
-          will be chosen based on your constraint."
       items={optionsArr}
       classNames={{
         base: "flex-1 min-w-32",
