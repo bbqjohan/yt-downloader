@@ -4,26 +4,21 @@ import {
   Checkbox,
   Divider,
   Input,
-  Select,
-  SelectItem,
-  SharedSelection,
   Tab,
   Tabs,
 } from "@heroui/react";
 import { OneColumnLayout } from "../layouts/one-column";
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useState } from "react";
 import { Key } from "@react-types/shared";
 import { useDownloadVideo, VideoDownloadItem } from "../hooks/download-video";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useStores } from "../store/stores";
-import {
-  VideoHeightConstraints,
-  VideoSettingsSchema,
-} from "../lib/fs/settings";
-import { ZodError } from "zod";
+import { VideoSettingsSchema } from "../lib/fs/settings";
+
 import { Link } from "react-router";
 import { BiSolidCog } from "react-icons/bi";
 import { VideoHeightSelect } from "../components/video-height-select";
+import { VideoHeightConstraintSelect } from "../components/video-height-constraint-select";
 
 export function DownloadPage() {
   const url = useStores().app((state) => state.app.url);
@@ -191,47 +186,15 @@ const VideoSettings = () => {
   const { height, setHeight, heightConstraint, setHeightConstraint } =
     useStores().settings((state) => state.video);
 
-  const _heightConstraint = useMemo(
-    () => [heightConstraint],
-    [heightConstraint]
-  );
-
-  const _heightConstraintError = useMemo(() => {
-    return VideoSettingsSchema.shape.heightConstraint.safeParse(
-      heightConstraint
-    ).error instanceof ZodError
-      ? "This is not a valid video constraint!"
-      : "";
-  }, [_heightConstraint]);
-
-  const handleVideoHeightConstraint = useCallback((value: SharedSelection) => {
-    if (value instanceof Set) {
-      setHeightConstraint(
-        value.values().next().value as VideoHeightConstraints
-      );
-    }
-  }, []);
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <div className="text-sm px-1">Video resolution</div>
         <div className="flex gap-4 items-start">
-          <Select
-            aria-label="Video resolution constraint"
-            selectedKeys={_heightConstraint}
-            onSelectionChange={handleVideoHeightConstraint}
-            classNames={{
-              base: "flex-1 min-w-32",
-            }}
-            errorMessage={_heightConstraintError}
-            isInvalid={Boolean(_heightConstraintError)}
-          >
-            <SelectItem key="ss">ss</SelectItem>
-            <SelectItem key="=">=</SelectItem>
-            <SelectItem key="<=">{"<="}</SelectItem>
-            <SelectItem key=">=">{">="}</SelectItem>
-          </Select>
+          <VideoHeightConstraintSelect
+            constraint={heightConstraint}
+            setConstraint={setHeightConstraint}
+          />
           <VideoHeightSelect height={height} setHeight={setHeight} />
         </div>
       </div>

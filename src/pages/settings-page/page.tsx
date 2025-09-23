@@ -7,9 +7,6 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
-  Select,
-  SelectItem,
-  SharedSelection,
   Tab,
   Tabs,
   TabsProps,
@@ -17,21 +14,19 @@ import {
 import { BsArrowCounterclockwise, BsArrowLeft } from "react-icons/bs";
 import { useStore as usePageStore } from "./store";
 import { useStores } from "../../store/stores";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Key } from "@react-types/shared";
 import {
   Settings,
   File as SettingsFile,
   SettingsSchema,
-  VideoHeightConstraints,
-  VideoSettingsSchema,
 } from "../../lib/fs/settings";
-import { ZodError } from "zod";
 import { open } from "@tauri-apps/plugin-dialog";
 import { stat } from "@tauri-apps/plugin-fs";
 import "./css.css";
 import { useNavigate } from "react-router";
 import { VideoHeightSelect } from "../../components/video-height-select";
+import { VideoHeightConstraintSelect } from "../../components/video-height-constraint-select";
 
 export function DefaultSettingsPage() {
   const [selectedTab, setSelectedTab] = useState<Key>("general");
@@ -252,7 +247,7 @@ const VideoSettings = () => {
       {/* Content */}
       <h1 className="text-2xl">Default video settings</h1>
       <VideoHeight />
-      <VideoHeightContraint />
+      <VideoHeightConstraint />
     </div>
   );
 };
@@ -283,32 +278,16 @@ const VideoHeight = () => {
   );
 };
 
-const VideoHeightContraint = () => {
+const VideoHeightConstraint = () => {
   const { heightConstraint, setHeightConstraint } = usePageStore(
     (state) => state.video
   );
   const hasChanged = usePageStore((s) => s.video.hasHeightConstraintChanged());
   const originalVal = useStores().settings((s) => s.video.heightConstraint);
-  const selValue = useMemo(() => [heightConstraint], [heightConstraint]);
-  const error = useMemo(() => {
-    return VideoSettingsSchema.shape.heightConstraint.safeParse(
-      heightConstraint
-    ).error instanceof ZodError
-      ? "This is not a valid video constraint!"
-      : "";
-  }, [heightConstraint]);
 
   const reset = () => {
     setHeightConstraint(originalVal);
   };
-
-  const handleSelection = useCallback((value: SharedSelection) => {
-    if (value instanceof Set) {
-      setHeightConstraint(
-        value.values().next().value as VideoHeightConstraints
-      );
-    }
-  }, []);
 
   return (
     <div className="flex flex-col gap-2">
@@ -321,20 +300,10 @@ const VideoHeightContraint = () => {
         )}
       </div>
       <div className="flex gap-4">
-        <Select
-          aria-label="Video resolution constraint"
-          selectedKeys={selValue}
-          onSelectionChange={handleSelection}
-          classNames={{
-            base: "flex-1 min-w-32",
-          }}
-          errorMessage={error}
-          isInvalid={Boolean(error)}
-        >
-          <SelectItem key="=">=</SelectItem>
-          <SelectItem key="<=">{"<="}</SelectItem>
-          <SelectItem key=">=">{">="}</SelectItem>
-        </Select>
+        <VideoHeightConstraintSelect
+          constraint={heightConstraint}
+          setConstraint={setHeightConstraint}
+        />
       </div>
     </div>
   );
