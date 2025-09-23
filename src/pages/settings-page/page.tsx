@@ -1,15 +1,11 @@
 import {
   Button,
   Checkbox,
-  Input,
   Modal,
   ModalBody,
   ModalContent,
   ModalFooter,
   ModalHeader,
-  Select,
-  SelectItem,
-  SharedSelection,
   Tab,
   Tabs,
   TabsProps,
@@ -17,21 +13,17 @@ import {
 import { BsArrowCounterclockwise, BsArrowLeft } from "react-icons/bs";
 import { useStore as usePageStore } from "./store";
 import { useStores } from "../../store/stores";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Key } from "@react-types/shared";
 import {
   Settings,
   File as SettingsFile,
   SettingsSchema,
-  VideoHeightConstraints,
-  VideoHeights,
-  VideoSettingsSchema,
 } from "../../lib/fs/settings";
-import { ZodError } from "zod";
-import { open } from "@tauri-apps/plugin-dialog";
-import { stat } from "@tauri-apps/plugin-fs";
-import "./css.css";
 import { useNavigate } from "react-router";
+import { VideoHeightSelect } from "../../components/video-height-select";
+import { VideoHeightConstraintSelect } from "../../components/video-height-constraint-select";
+import { VideoOutputPath } from "../../components/video-output-path";
 
 export function DefaultSettingsPage() {
   const [selectedTab, setSelectedTab] = useState<Key>("general");
@@ -252,7 +244,7 @@ const VideoSettings = () => {
       {/* Content */}
       <h1 className="text-2xl">Default video settings</h1>
       <VideoHeight />
-      <VideoHeightContraint />
+      <VideoHeightConstraint />
     </div>
   );
 };
@@ -261,23 +253,10 @@ const VideoHeight = () => {
   const { height, setHeight } = usePageStore((state) => state.video);
   const hasChanged = usePageStore((s) => s.video.hasHeightChanged());
   const originalVal = useStores().settings((s) => s.video.height);
-  const selValue = useMemo(() => [height], [height]);
-  const error = useMemo(() => {
-    return VideoSettingsSchema.shape.height.safeParse(height).error instanceof
-      ZodError
-      ? "This is not a valid video resolution!"
-      : "";
-  }, [height]);
 
   const reset = () => {
     setHeight(originalVal);
   };
-
-  const handleSelection = useCallback((value: SharedSelection) => {
-    if (value instanceof Set) {
-      setHeight(value.values().next().value as VideoHeights);
-    }
-  }, []);
 
   return (
     <div className="flex flex-col gap-2">
@@ -290,53 +269,22 @@ const VideoHeight = () => {
         )}
       </div>
       <div className="flex gap-4">
-        <Select
-          aria-label="Video resolution"
-          selectedKeys={selValue}
-          onSelectionChange={handleSelection}
-          isInvalid={Boolean(error)}
-          errorMessage={error}
-        >
-          <SelectItem key="144">144p</SelectItem>
-          <SelectItem key="240">240p</SelectItem>
-          <SelectItem key="360">360p</SelectItem>
-          <SelectItem key="480">480p</SelectItem>
-          <SelectItem key="720">720p</SelectItem>
-          <SelectItem key="1080">1080p</SelectItem>
-          <SelectItem key="1440">1440p</SelectItem>
-          <SelectItem key="2160">2160p</SelectItem>
-        </Select>
+        <VideoHeightSelect height={height} setHeight={setHeight} />
       </div>
     </div>
   );
 };
 
-const VideoHeightContraint = () => {
+const VideoHeightConstraint = () => {
   const { heightConstraint, setHeightConstraint } = usePageStore(
     (state) => state.video
   );
   const hasChanged = usePageStore((s) => s.video.hasHeightConstraintChanged());
   const originalVal = useStores().settings((s) => s.video.heightConstraint);
-  const selValue = useMemo(() => [heightConstraint], [heightConstraint]);
-  const error = useMemo(() => {
-    return VideoSettingsSchema.shape.heightConstraint.safeParse(
-      heightConstraint
-    ).error instanceof ZodError
-      ? "This is not a valid video constraint!"
-      : "";
-  }, [heightConstraint]);
 
   const reset = () => {
     setHeightConstraint(originalVal);
   };
-
-  const handleSelection = useCallback((value: SharedSelection) => {
-    if (value instanceof Set) {
-      setHeightConstraint(
-        value.values().next().value as VideoHeightConstraints
-      );
-    }
-  }, []);
 
   return (
     <div className="flex flex-col gap-2">
@@ -349,20 +297,10 @@ const VideoHeightContraint = () => {
         )}
       </div>
       <div className="flex gap-4">
-        <Select
-          aria-label="Video resolution constraint"
-          selectedKeys={selValue}
-          onSelectionChange={handleSelection}
-          classNames={{
-            base: "flex-1 min-w-32",
-          }}
-          errorMessage={error}
-          isInvalid={Boolean(error)}
-        >
-          <SelectItem key="=">=</SelectItem>
-          <SelectItem key="<=">{"<="}</SelectItem>
-          <SelectItem key=">=">{">="}</SelectItem>
-        </Select>
+        <VideoHeightConstraintSelect
+          constraint={heightConstraint}
+          setConstraint={setHeightConstraint}
+        />
       </div>
     </div>
   );
@@ -381,58 +319,9 @@ const OutputPath = () => {
   const { outputPath, setOutputPath } = usePageStore((state) => state.general);
   const hasChanged = usePageStore((s) => s.general.hasOutputPathChanged());
   const originalVal = useStores().settings((s) => s.general.outputPath);
-  const [error, setError] = useState("");
-  const [checkingPath, setCheckingPath] = useState(false);
-
-  useEffect(() => {
-    let ongoing = true;
-
-    async function tryPath() {
-      try {
-        const entry = await stat(outputPath);
-
-        if (entry.isFile) {
-          throw "";
-        }
-
-        setError("");
-      } catch (e: any) {
-        if (typeof e === "string") {
-          setError("This path does not point to a directory.");
-        } else {
-          setError("Error: " + e);
-        }
-      }
-
-      setCheckingPath(false);
-    }
-
-    setTimeout(() => {
-      if (ongoing) {
-        tryPath();
-      }
-    }, 1250);
-
-    setCheckingPath(true);
-
-    return () => {
-      ongoing = false;
-    };
-  }, [outputPath]);
 
   const reset = () => {
     setOutputPath(originalVal);
-  };
-
-  const handleOutputPathSelect = async () => {
-    const dirPath = await open({
-      multiple: false,
-      directory: true,
-    });
-
-    if (dirPath) {
-      setOutputPath(dirPath);
-    }
   };
 
   return (
@@ -445,23 +334,7 @@ const OutputPath = () => {
           </Button>
         )}
       </div>
-      <div className="flex gap-4">
-        <Input
-          value={outputPath}
-          onValueChange={setOutputPath}
-          errorMessage={error}
-          isInvalid={error !== ""}
-        />
-        <Button
-          onPress={handleOutputPathSelect}
-          variant="solid"
-          color="primary"
-        >
-          <div className="flex flex-col items-centers justify-center">
-            {checkingPath ? <div className="loader scale-150"></div> : "Select"}
-          </div>
-        </Button>
-      </div>
+      <VideoOutputPath value={outputPath} setValue={setOutputPath} />
     </div>
   );
 };
