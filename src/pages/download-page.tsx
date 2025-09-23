@@ -11,7 +11,6 @@ import { OneColumnLayout } from "../layouts/one-column";
 import { memo, useState } from "react";
 import { Key } from "@react-types/shared";
 import { useDownloadVideo, VideoDownloadItem } from "../hooks/download-video";
-import { open } from "@tauri-apps/plugin-dialog";
 import { useStores } from "../store/stores";
 import { VideoSettingsSchema } from "../lib/fs/settings";
 
@@ -152,17 +151,6 @@ const GeneralSettings = () => {
   const { outputPath, setOutputPath } = useStores().settings(
     (state) => state.general
   );
-
-  const handleOutputPathSelect = async () => {
-    const file = await open({
-      multiple: false,
-      directory: true,
-    });
-
-    if (file) {
-      setOutputPath(file);
-    }
-  };
 
   return (
     <div className="flex flex-col gap-4">

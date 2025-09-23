@@ -1,7 +1,6 @@
 import {
   Button,
   Checkbox,
-  Input,
   Modal,
   ModalBody,
   ModalContent,
@@ -21,8 +20,6 @@ import {
   File as SettingsFile,
   SettingsSchema,
 } from "../../lib/fs/settings";
-import { open } from "@tauri-apps/plugin-dialog";
-import { stat } from "@tauri-apps/plugin-fs";
 import { useNavigate } from "react-router";
 import { VideoHeightSelect } from "../../components/video-height-select";
 import { VideoHeightConstraintSelect } from "../../components/video-height-constraint-select";
