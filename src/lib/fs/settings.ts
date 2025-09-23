@@ -88,7 +88,7 @@ export class File {
 }
 
 export const VideoSettingsSchema = z.object({
-  height: z.literal([
+  height: z.literal<VideoHeightList>([
     "144",
     "240",
     "360",
@@ -101,10 +101,42 @@ export const VideoSettingsSchema = z.object({
   heightConstraint: z.literal(["=", "<=", ">="]),
 });
 
+/**
+ * Represents the possible video height resolutions supported by the application.
+ *
+ * This tuple type is used to constrain the allowed values for video resolution selection.
+ * The values correspond to common vertical pixel resolutions for video content.
+ *
+ * If you need to a type for selecting a value from this list, use `VideoHeights`.
+ */
+export type VideoHeightList = [
+  "144",
+  "240",
+  "360",
+  "480",
+  "720",
+  "1080",
+  "1440",
+  "2160"
+];
+
+/**
+ * Represents the possible video height values as defined by the `height` property
+ * in the `VideoSettingsSchema`.
+ *
+ * Provides type safety in situations where you, for example, need to use only one of the
+ * available values from {@link VideoHeightList}.
+ */
 export type VideoHeights = z.infer<typeof VideoSettingsSchema.shape.height>;
+
+/**
+ * Represents the constraints for the height of a video as defined by the `heightConstraint`
+ * property in the `VideoSettingsSchema` Zod schema.
+ */
 export type VideoHeightConstraints = z.infer<
   typeof VideoSettingsSchema.shape.heightConstraint
 >;
+
 export type VideoSettingsSchema = z.infer<typeof VideoSettingsSchema>;
 
 /**

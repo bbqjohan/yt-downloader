@@ -18,12 +18,12 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { useStores } from "../store/stores";
 import {
   VideoHeightConstraints,
-  VideoHeights,
   VideoSettingsSchema,
 } from "../lib/fs/settings";
 import { ZodError } from "zod";
 import { Link } from "react-router";
 import { BiSolidCog } from "react-icons/bi";
+import { VideoHeightSelect } from "../components/video-height-select";
 
 export function DownloadPage() {
   const url = useStores().app((state) => state.app.url);
@@ -190,18 +190,11 @@ const GeneralSettings = () => {
 const VideoSettings = () => {
   const { height, setHeight, heightConstraint, setHeightConstraint } =
     useStores().settings((state) => state.video);
-  const _height = useMemo(() => [height], [height]);
+
   const _heightConstraint = useMemo(
     () => [heightConstraint],
     [heightConstraint]
   );
-
-  const _heightError = useMemo(() => {
-    return VideoSettingsSchema.shape.height.safeParse(height).error instanceof
-      ZodError
-      ? "This is not a valid video resolution!"
-      : "";
-  }, [_height]);
 
   const _heightConstraintError = useMemo(() => {
     return VideoSettingsSchema.shape.heightConstraint.safeParse(
@@ -210,12 +203,6 @@ const VideoSettings = () => {
       ? "This is not a valid video constraint!"
       : "";
   }, [_heightConstraint]);
-
-  const handleVideoHeight = useCallback((value: SharedSelection) => {
-    if (value instanceof Set) {
-      setHeight(value.values().next().value as VideoHeights);
-    }
-  }, []);
 
   const handleVideoHeightConstraint = useCallback((value: SharedSelection) => {
     if (value instanceof Set) {
@@ -245,28 +232,7 @@ const VideoSettings = () => {
             <SelectItem key="<=">{"<="}</SelectItem>
             <SelectItem key=">=">{">="}</SelectItem>
           </Select>
-          <Select
-            aria-label="Video resolution"
-            selectedKeys={_height}
-            onSelectionChange={handleVideoHeight}
-            isInvalid={Boolean(_heightError)}
-            errorMessage={_heightError}
-          >
-            <SelectItem key="ss">ss</SelectItem>
-            <SelectItem key="144">144p</SelectItem>
-            <SelectItem key="240">240p</SelectItem>
-            <SelectItem key="360">360p</SelectItem>
-            <SelectItem key="480">480p</SelectItem>
-            <SelectItem key="720">720p</SelectItem>
-            <SelectItem key="1080">1080p</SelectItem>
-            <SelectItem key="1440">1440p</SelectItem>
-            <SelectItem key="2160">2160p</SelectItem>
-          </Select>
-        </div>
-        <div className="text-xs px-1">
-          Not all videos have all resolutions available. The selected resolution
-          will be used if available, otherwise, the closest available resolution
-          will be chosen based on your constraint.
+          <VideoHeightSelect height={height} setHeight={setHeight} />
         </div>
       </div>
     </div>

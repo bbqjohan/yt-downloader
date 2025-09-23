@@ -24,7 +24,6 @@ import {
   File as SettingsFile,
   SettingsSchema,
   VideoHeightConstraints,
-  VideoHeights,
   VideoSettingsSchema,
 } from "../../lib/fs/settings";
 import { ZodError } from "zod";
@@ -32,6 +31,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { stat } from "@tauri-apps/plugin-fs";
 import "./css.css";
 import { useNavigate } from "react-router";
+import { VideoHeightSelect } from "../../components/video-height-select";
 
 export function DefaultSettingsPage() {
   const [selectedTab, setSelectedTab] = useState<Key>("general");
@@ -261,23 +261,10 @@ const VideoHeight = () => {
   const { height, setHeight } = usePageStore((state) => state.video);
   const hasChanged = usePageStore((s) => s.video.hasHeightChanged());
   const originalVal = useStores().settings((s) => s.video.height);
-  const selValue = useMemo(() => [height], [height]);
-  const error = useMemo(() => {
-    return VideoSettingsSchema.shape.height.safeParse(height).error instanceof
-      ZodError
-      ? "This is not a valid video resolution!"
-      : "";
-  }, [height]);
 
   const reset = () => {
     setHeight(originalVal);
   };
-
-  const handleSelection = useCallback((value: SharedSelection) => {
-    if (value instanceof Set) {
-      setHeight(value.values().next().value as VideoHeights);
-    }
-  }, []);
 
   return (
     <div className="flex flex-col gap-2">
@@ -290,22 +277,7 @@ const VideoHeight = () => {
         )}
       </div>
       <div className="flex gap-4">
-        <Select
-          aria-label="Video resolution"
-          selectedKeys={selValue}
-          onSelectionChange={handleSelection}
-          isInvalid={Boolean(error)}
-          errorMessage={error}
-        >
-          <SelectItem key="144">144p</SelectItem>
-          <SelectItem key="240">240p</SelectItem>
-          <SelectItem key="360">360p</SelectItem>
-          <SelectItem key="480">480p</SelectItem>
-          <SelectItem key="720">720p</SelectItem>
-          <SelectItem key="1080">1080p</SelectItem>
-          <SelectItem key="1440">1440p</SelectItem>
-          <SelectItem key="2160">2160p</SelectItem>
-        </Select>
+        <VideoHeightSelect height={height} setHeight={setHeight} />
       </div>
     </div>
   );
