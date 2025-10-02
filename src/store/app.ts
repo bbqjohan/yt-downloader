@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import { ImmerStateCreator } from "./types";
+import { ImmerSliceCreator } from "./types";
 
-type ImmerState<T> = ImmerStateCreator<T, StoreState>;
+type ImmerState<T> = ImmerSliceCreator<T, StoreState>;
 
 interface AppState {
   url: string;

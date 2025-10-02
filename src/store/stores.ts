@@ -2,12 +2,17 @@ import {
   createStore as createSettingsStore,
   useStore as useSettingsStore,
 } from "./settings";
+import {
+  createStore as _createSettingsStore,
+  // useStore as _useSettingsStore,
+} from "./_combined_settings";
 
 import { createStore as createAppStore, useStore as useAppStore } from "./app";
 
 let _useStores: {
   settings: typeof useSettingsStore;
   app: typeof useAppStore;
+  // _combined: typeof _useSettingsStore;
 };
 
 export function createAllStores(data?: {
@@ -17,6 +22,7 @@ export function createAllStores(data?: {
   _useStores = {
     settings: createSettingsStore(data?.settings),
     app: createAppStore(data?.app),
+    // _combined: _createSettingsStore(data?.settings),
   };
 
   return useStores;

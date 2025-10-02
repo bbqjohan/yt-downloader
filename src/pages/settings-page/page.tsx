@@ -11,7 +11,8 @@ import {
   TabsProps,
 } from "@heroui/react";
 import { BsArrowCounterclockwise, BsArrowLeft } from "react-icons/bs";
-import { useStore as usePageStore } from "./store";
+import { SettingsStore, useStore as usePageStore } from "./store";
+import { SettingsStore as _SettingsStore } from "../../store/_combined_settings";
 import { useStores } from "../../store/stores";
 import { useEffect, useState } from "react";
 import { Key } from "@react-types/shared";
@@ -52,6 +53,7 @@ function useSettings() {
         try {
           await SettingsFile.write(newState);
           useStores().settings.setState(newState);
+          _SettingsStore.replace(newState);
         } catch (e: any) {
           // Do nothing.
         }
@@ -59,6 +61,7 @@ function useSettings() {
         if (mounted) {
           setNewState(undefined);
           setIsWriting(false);
+          console.log("Settings isWriting");
         }
       };
 
@@ -85,19 +88,13 @@ function useSettings() {
 }
 
 const Topbar = () => {
-  const hasUnsavedChanges = usePageStore(usePageStore.hasChanged);
+  const hasUnsavedChanges = usePageStore(() => SettingsStore.hasChanged());
   const settings = useSettings();
   const [openModal, setOpenModal] = useState(false);
   const navigate = useNavigate();
 
   const applySettings = () => {
-    settings.write(
-      JSON.parse(
-        JSON.stringify({
-          ...usePageStore.getState(),
-        })
-      )
-    );
+    settings.write(SettingsStore.to());
   };
 
   const onPageLeave = () => {
@@ -118,13 +115,13 @@ const Topbar = () => {
   };
 
   useEffect(() => {
-    if (settings.promise) {
+    if (settings.promise && openModal) {
       settings.promise.then(() => {
         setOpenModal(false);
         navigate("/");
       });
     }
-  }, [settings.promise]);
+  }, [settings.promise, openModal]);
 
   return (
     <div className="flex col-span-full py-4 border-b-1 border-gray-300 items-center">
@@ -207,16 +204,16 @@ const AudioSettings = () => {
 };
 
 const AudioQuality = () => {
-  const { isWorstQuality, setIsWorstQuality } = usePageStore(
-    (state) => state.audio
-  );
+  const { isWorstQuality } = usePageStore((state) => state.audio);
+
   const isWorstQualityChanged = usePageStore((s) =>
-    s.audio.hasIsWorstQualityChanged()
+    s.audio.isWorstQuality.hasChanged()
   );
+
   const isWorstQualityOg = useStores().settings((s) => s.audio.isWorstQuality);
 
   const resetIsWorstAudioQuality = () => {
-    setIsWorstQuality(isWorstQualityOg);
+    isWorstQuality.setValue(isWorstQualityOg);
   };
 
   return (
@@ -230,7 +227,10 @@ const AudioQuality = () => {
         )}
       </div>
       <div className="flex gap-4">
-        <Checkbox isSelected={isWorstQuality} onValueChange={setIsWorstQuality}>
+        <Checkbox
+          isSelected={isWorstQuality.value}
+          onValueChange={isWorstQuality.setValue}
+        >
           Worst quality
         </Checkbox>
       </div>
@@ -250,12 +250,12 @@ const VideoSettings = () => {
 };
 
 const VideoHeight = () => {
-  const { height, setHeight } = usePageStore((state) => state.video);
-  const hasChanged = usePageStore((s) => s.video.hasHeightChanged());
+  const { height } = usePageStore((state) => state.video);
+  const hasChanged = usePageStore((s) => s.video.height.hasChanged());
   const originalVal = useStores().settings((s) => s.video.height);
 
   const reset = () => {
-    setHeight(originalVal);
+    height.setValue(originalVal);
   };
 
   return (
@@ -269,21 +269,19 @@ const VideoHeight = () => {
         )}
       </div>
       <div className="flex gap-4">
-        <VideoHeightSelect height={height} setHeight={setHeight} />
+        <VideoHeightSelect height={height.value} setHeight={height.setValue} />
       </div>
     </div>
   );
 };
 
 const VideoHeightConstraint = () => {
-  const { heightConstraint, setHeightConstraint } = usePageStore(
-    (state) => state.video
-  );
-  const hasChanged = usePageStore((s) => s.video.hasHeightConstraintChanged());
+  const { heightConstraint } = usePageStore((state) => state.video);
+  const hasChanged = usePageStore((s) => s.video.heightConstraint.hasChanged());
   const originalVal = useStores().settings((s) => s.video.heightConstraint);
 
   const reset = () => {
-    setHeightConstraint(originalVal);
+    heightConstraint.setValue(originalVal);
   };
 
   return (
@@ -298,8 +296,8 @@ const VideoHeightConstraint = () => {
       </div>
       <div className="flex gap-4">
         <VideoHeightConstraintSelect
-          constraint={heightConstraint}
-          setConstraint={setHeightConstraint}
+          constraint={heightConstraint.value}
+          setConstraint={heightConstraint.setValue}
         />
       </div>
     </div>
@@ -316,12 +314,12 @@ const GeneralSettings = () => {
 };
 
 const OutputPath = () => {
-  const { outputPath, setOutputPath } = usePageStore((state) => state.general);
-  const hasChanged = usePageStore((s) => s.general.hasOutputPathChanged());
+  const { outputPath } = usePageStore((state) => state.general);
+  const hasChanged = usePageStore((s) => s.general.outputPath.hasChanged());
   const originalVal = useStores().settings((s) => s.general.outputPath);
 
   const reset = () => {
-    setOutputPath(originalVal);
+    outputPath.setValue(originalVal);
   };
 
   return (
@@ -334,7 +332,10 @@ const OutputPath = () => {
           </Button>
         )}
       </div>
-      <VideoOutputPath value={outputPath} setValue={setOutputPath} />
+      <VideoOutputPath
+        value={outputPath.value}
+        setValue={outputPath.setValue}
+      />
     </div>
   );
 };

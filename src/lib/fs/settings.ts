@@ -250,9 +250,9 @@ function mergeClassArgs<T extends object, S extends z.ZodObject>(
 
   keys.forEach((key) => {
     if (Object.hasOwn(obj, key)) {
-      obj[key as keyof typeof obj] = (data as object)[
+      obj[key as keyof T] = (data as object)[
         key as keyof typeof data
-      ] as (typeof obj)[keyof typeof obj];
+      ] as T[keyof T];
     }
   });
 

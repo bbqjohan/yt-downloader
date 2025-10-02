@@ -12,9 +12,9 @@ import {
   VideoSettings,
   VideoSettingsSchema,
 } from "../lib/fs/settings";
-import { type ImmerStateCreator } from "./types";
+import { type ImmerSliceCreator } from "./types";
 
-type ImmerState<T> = ImmerStateCreator<T, StoreState>;
+type ImmerState<T> = ImmerSliceCreator<T, StoreState>;
 
 export type AudioSettingsState = AudioSettingsSchema;
 
