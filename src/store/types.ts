@@ -1,5 +1,5 @@
 import z from "zod";
-import { StateCreator } from "zustand";
+import { create, StateCreator } from "zustand";
 import { immer } from "zustand/middleware/immer";
 
 /**
@@ -90,9 +90,6 @@ export type SliceCreator<TData, TSlice, TStoreState> = (
  */
 export type SliceManager<TData, TSlice, TStoreState> = {
   create: SliceCreator<TData, TSlice, TStoreState>;
-  // toData: (state?: TStoreState) => TData;
-  // replace: (data: TData) => void;
-  // merge: (data: TData) => TSlice;
   extends: <T extends TStoreState>(
     data?: TData
   ) => (...args: Parameters<ReturnType<typeof immer<T>>>) => TSlice;
@@ -100,9 +97,6 @@ export type SliceManager<TData, TSlice, TStoreState> = {
 
 export type StoreManager<TData, TStoreState> = {
   create: SliceCreator<TData, TStoreState, TStoreState>;
-  // to: (state?: TStoreState) => TData;
-  // replace: (data: TData) => void;
-  // merge: (data: TData) => TStoreState;
 };
 
 export function mergeSliceWithData<
@@ -122,3 +116,175 @@ export function mergeSliceWithData<
 }
 
 export function createSliceManager() {}
+
+// =============================================================
+// =============================================================
+// =============================================================
+// =============================================================
+// =============================================================
+// =============================================================
+// =============================================================
+
+export interface Value<TData, TStore> {
+  value: TData;
+  error: SliceValueError;
+  setValue: (value: TData) => void;
+  setError: (value: SliceValueError) => void;
+  update: (value: TData) => void;
+  validate: (value: any) => SliceValueError;
+  compare: CompareFn<TStore>;
+}
+
+// export interface ValueComparable<TData, TStore> extends Value<TData> {
+//   hasChanged: HasChangedFn<TStore>;
+// }
+
+export type ToValues<TData, TStore> = {
+  [K in keyof TData]: Value<TData[K], TStore>;
+};
+
+// export type ToValuesComparable<T> = {
+//   [K in keyof T]: ValueComparable<T[K]>;
+// };
+
+export type ToDataFn<T> = () => T;
+export type MergeFn<TSlice, TData> = (slice: TSlice, data: TData) => TSlice;
+export type HydrateFn<T> = (data: T) => void;
+export type CompareFn<TStore> = <T extends TStore>(store: T) => boolean;
+export type SliceValueError = string | null;
+export type SliceCreatorFn<TData, TSlice, TStore> = (
+  data?: TData
+) => <T extends TStore>(
+  ...args: Parameters<ImmerSliceCreator<TSlice, T>>
+) => TSlice;
+
+export interface ToData<T> {
+  toData: ToDataFn<T>;
+}
+
+export interface Merge<TData, TSlice> {
+  merge: MergeFn<TSlice, TData>;
+}
+
+export interface Hydrate<T> {
+  hydrate: HydrateFn<T>;
+}
+
+export interface Compare<TStore> {
+  compare: CompareFn<TStore>;
+}
+
+export type Slice<TData> = ToData<TData> &
+  Hydrate<TData> &
+  Merge<TData, Slice<TData>> &
+  ToValues<TData, MyStore>;
+
+export type Store<TData, TStore> = Hydrate<TData> &
+  Merge<TData, TStore> &
+  ToData<TData> &
+  TStore;
+
+interface MySliceData {
+  quality: string;
+}
+
+type MySlice = Slice<MySliceData> & Compare<MyStore>;
+
+const MySliceCreator: SliceCreatorFn<MySliceData, MySlice, MyStore> = (
+  data
+) => {
+  return (set, get, store) => {
+    const instance: MySlice = {
+      quality: {
+        value: "",
+        error: null,
+        setValue: () => {
+          set((s) => {
+            s.mySlice.quality.value = "sdf";
+            return s;
+          });
+        },
+        setError: () => {},
+        update: () => {},
+        validate: () => null,
+        compare: (otherStore) => {
+          return (
+            get().mySlice.quality.value === otherStore.mySlice.quality.value
+          );
+        },
+      },
+      hydrate: (data) => {},
+      merge: (slice, data) => slice,
+      toData: () => data as any,
+      compare: (otherStore) => {
+        return get().mySlice.quality.compare(otherStore);
+      },
+    };
+
+    return instance;
+  };
+};
+
+interface MyStoreData {
+  mySlice: MySliceData;
+}
+
+type MyStore = Store<
+  MyStoreData,
+  {
+    mySlice: MySlice;
+  }
+>;
+
+const b: MyStore = {
+  mySlice: MySliceCreator()(1 as any, 2 as any, 3 as any),
+  merge: (store, data) => {
+    store.mySlice.merge(store.mySlice, data.mySlice);
+    return store;
+  },
+} as MyStore;
+b.merge(b, { mySlice: { quality: "asdf" } });
+
+// ------------------------------------------- Store 2
+
+type MySlice2 = MySlice & { what: () => false };
+
+const MySliceCreator2: SliceCreatorFn<MySliceData, MySlice2, MyStore2> = (
+  data: any
+) => {
+  return (set, get, store) => {
+    const _slice = MySliceCreator(data)(set, get, store);
+
+    const instance: MySlice2 = {
+      ..._slice,
+      quality: {
+        ..._slice.quality,
+        compare: () => false,
+      },
+      what: () => false,
+    };
+
+    return instance;
+  };
+};
+
+interface MyStore2 extends MyStore {
+  mySlice: MySlice2;
+}
+
+const Store2Creator = (store: MyStore, data: MyStoreData) => {
+  return create<MyStore2>()(
+    immer((...args) => {
+      return {
+        mySlice: MySliceCreator2(data.mySlice)(...args),
+        merge: () => {
+          return 123 as any;
+        },
+        hydrate: () => {},
+        toData: () => {
+          return 123 as any;
+        },
+      };
+    })
+  );
+};

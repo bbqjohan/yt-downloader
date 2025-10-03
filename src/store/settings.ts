@@ -1,140 +1,337 @@
-import { create } from "zustand";
-import { immer } from "zustand/middleware/immer";
 import {
   AudioSettings,
   AudioSettingsSchema,
   GeneralSettings,
   GeneralSettingsSchema,
   Settings,
-  SettingsSchema,
-  VideoHeightConstraints,
-  VideoHeights,
   VideoSettings,
   VideoSettingsSchema,
 } from "../lib/fs/settings";
-import { type ImmerSliceCreator } from "./types";
+import {
+  mergeSliceWithData,
+  SliceManager,
+  StoreManager,
+  StoreSlice,
+  StoreSliceData,
+} from "./types";
+import { create } from "zustand";
+import { immer } from "zustand/middleware/immer";
 
-type ImmerState<T> = ImmerSliceCreator<T, StoreState>;
+// ===============================================================================
+//
+// Audio slice
+//
+// ===============================================================================
 
-export type AudioSettingsState = AudioSettingsSchema;
+export type AudioSettingsSliceData = StoreSliceData<AudioSettings>;
+export type AudioSettingsSlice = StoreSlice<
+  AudioSettings,
+  AudioSettingsSliceData
+>;
 
-export interface AudioSettingsActions {
-  setIsWorstQuality: (value: boolean) => void;
-}
+export const AudioSettingsSliceManager: SliceManager<
+  AudioSettings,
+  AudioSettingsSlice,
+  StoreState
+> = {
+  create: (data) => {
+    return (...args) => {
+      return AudioSettingsSliceManager.extends(data)(...args);
+    };
+  },
 
-export type AudioSettingsSlice = AudioSettingsState & AudioSettingsActions;
+  extends: (data) => (set, get) => {
+    const slice: AudioSettingsSlice = {
+      quality: {
+        value: "",
+        error: null,
+        setValue: (value) => {
+          set((s) => {
+            s.audio.quality.value = value;
+            return s;
+          });
+        },
+        setError: (value) => {
+          set((s) => {
+            s.audio.quality.error = value;
+            return s;
+          });
+        },
+        validate: (value) => {
+          return !AudioSettingsSchema.shape.quality.safeParse(value).success
+            ? "Not quality enough"
+            : null;
+        },
+        update: (value) => {
+          const state = get().audio;
 
-const createAudioSettingsSlice: (
-  data?: AudioSettingsState
-) => ImmerState<AudioSettingsSlice> = (data) => (set) => ({
-  ...new AudioSettings(data),
+          state.quality.setValue(value);
+          state.quality.setError(state.quality.validate(value));
+        },
+      },
+      merge: (state, data) => {
+        state.quality.value = data.quality;
 
-  setIsWorstQuality: (value: boolean) =>
-    set((state) => {
-      state.audio.isWorstQuality = value;
-    }),
-});
+        return state;
+      },
+      toData: () => {
+        const state = get().audio;
 
-export type VideoSettingsState = VideoSettingsSchema;
+        return new AudioSettings({
+          quality: state.quality.value,
+        });
+      },
+      hydrate: (data) => {
+        set((s) => {
+          s.audio = s.audio.merge(s.audio, data);
+          return s;
+        });
+      },
+    };
 
-export interface VideoSettingsActions {
-  setHeight: (value: VideoHeights) => void;
-  setHeightConstraint: (value: VideoHeightConstraints) => void;
-}
+    return mergeSliceWithData(slice, AudioSettingsSchema, data);
+  },
+};
 
-export type VideoSettingsSlice = VideoSettingsState & VideoSettingsActions;
+// ===============================================================================
+//
+// Video slice
+//
+// ===============================================================================
 
-const createVideoSettingsSlice: (
-  data?: VideoSettingsState
-) => ImmerState<VideoSettingsSlice> = (data) => (set) => ({
-  ...new VideoSettings(data),
+export type VideoSettingsSliceData = StoreSliceData<VideoSettings>;
+export type VideoSettingsSlice = StoreSlice<
+  VideoSettings,
+  VideoSettingsSliceData
+>;
 
-  setHeight: (value) =>
-    set((state) => {
-      state.video.height = value;
-    }),
+export const VideoSettingsSliceManager: SliceManager<
+  VideoSettings,
+  VideoSettingsSlice,
+  StoreState
+> = {
+  create: (data) => {
+    return (...args) => {
+      return VideoSettingsSliceManager.extends(data)(...args);
+    };
+  },
 
-  setHeightConstraint: (value) =>
-    set((state) => {
-      state.video.heightConstraint = value;
-    }),
-});
+  extends: (data) => (set, get) => {
+    const slice: VideoSettingsSlice = {
+      height: {
+        value: "144",
+        error: null,
+        setValue: (value) =>
+          set((s) => {
+            s.video.height.value = value;
+            return s;
+          }),
+        setError: (value) =>
+          set((s) => {
+            s.video.height.error = value;
+            return s;
+          }),
+        validate: (value) => {
+          return !VideoSettingsSchema.shape.height.safeParse(value).success
+            ? "Not a valid height"
+            : null;
+        },
+        update: (value) => {
+          const state = get().video;
 
-export type GeneralSettingsState = GeneralSettingsSchema;
+          state.height.setValue(value);
+          state.height.setError(state.height.validate(value));
+        },
+      },
+      heightConstraint: {
+        value: "=",
+        error: null,
+        setValue: (value) =>
+          set((s) => {
+            s.video.heightConstraint.value = value;
+            return s;
+          }),
+        setError: (value) =>
+          set((s) => {
+            s.video.heightConstraint.error = value;
+            return s;
+          }),
+        validate: (value) => {
+          return !VideoSettingsSchema.shape.heightConstraint.safeParse(value)
+            .success
+            ? "Not a valid constraint"
+            : null;
+        },
+        update: (value) => {
+          const state = get().video;
 
-export interface GeneralSettingsActions {
-  setOutputPath: (value: string) => void;
-}
+          state.heightConstraint.setValue(value);
+          state.heightConstraint.setError(
+            state.heightConstraint.validate(value)
+          );
+        },
+      },
+      merge: (state, data) => {
+        state.height.value = data.height;
+        state.heightConstraint.value = data.heightConstraint;
 
-export type GeneralSettingsSlice = GeneralSettingsState &
-  GeneralSettingsActions;
+        return state;
+      },
+      toData: () => {
+        const state = get().video;
 
-const createGeneralSettingsSlice: (
-  data?: GeneralSettingsState
-) => ImmerState<GeneralSettingsSlice> = (data) => (set) => ({
-  ...new GeneralSettings(data),
+        return new VideoSettings({
+          height: state.height.value,
+          heightConstraint: state.heightConstraint.value,
+        });
+      },
+      hydrate: (data) => {
+        set((s) => {
+          s.video = s.video.merge(s.video, data);
+          return s;
+        });
+      },
+    };
 
-  setOutputPath: (value: string) =>
-    set((state) => {
-      state.general.outputPath = value;
-    }),
-});
+    return mergeSliceWithData(slice, VideoSettingsSchema, data);
+  },
+};
+
+// ===============================================================================
+//
+// General slice
+//
+// ===============================================================================
+
+export type GeneralSettingsSliceData = StoreSliceData<GeneralSettings>;
+export type GeneralSettingsSlice = StoreSlice<
+  GeneralSettings,
+  GeneralSettingsSliceData
+>;
+
+export const GeneralSettingsSliceManager: SliceManager<
+  GeneralSettings,
+  GeneralSettingsSlice,
+  StoreState
+> = {
+  create: (data) => {
+    return (...args) => {
+      return GeneralSettingsSliceManager.extends(data)(...args);
+    };
+  },
+
+  extends: (data) => (set, get) => {
+    const slice: GeneralSettingsSlice = {
+      outputPath: {
+        value: "",
+        error: null,
+        setValue: (value) =>
+          set((s) => {
+            s.general.outputPath.value = value;
+            return s;
+          }),
+        setError: (value) =>
+          set((s) => {
+            s.general.outputPath.error = value;
+            return s;
+          }),
+        validate: (value) => {
+          return !GeneralSettingsSchema.shape.outputPath.safeParse(value)
+            .success
+            ? "Not a valid output path."
+            : null;
+        },
+        update: (value) => {
+          const state = get().general;
+
+          state.outputPath.setValue(value);
+          state.outputPath.setError(state.outputPath.validate(value));
+        },
+      },
+      merge: (state, data) => {
+        state.outputPath.value = data.outputPath;
+
+        return state;
+      },
+      toData: () => {
+        const state = get().general;
+
+        return new GeneralSettings({
+          outputPath: state.outputPath.value,
+        });
+      },
+      hydrate: (data) => {
+        set((s) => {
+          s.general = s.general.merge(s.general, data);
+          return s;
+        });
+      },
+    };
+
+    return mergeSliceWithData(slice, GeneralSettingsSchema, data);
+  },
+};
+
+// ===============================================================================
+//
+// The store hook
+//
+// ===============================================================================
 
 export interface StoreState {
   audio: AudioSettingsSlice;
   video: VideoSettingsSlice;
   general: GeneralSettingsSlice;
+  toData: () => Settings;
+  merge: <T extends StoreState>(state: T, data: Settings) => T;
 }
 
-const createSettingsSlice: (
-  data?: Partial<{
-    audio: AudioSettingsState;
-    video: VideoSettingsState;
-    general: GeneralSettingsState;
-  }>
-) => ImmerState<StoreState> =
-  (data) =>
-  (...args) => ({
-    audio: createAudioSettingsSlice(data?.audio)(...args),
-    video: createVideoSettingsSlice(data?.video)(...args),
-    general: createGeneralSettingsSlice(data?.general)(...args),
-  });
+export const SettingsStore: StoreManager<Settings, StoreState> = {
+  create: (data) => {
+    return (...args) => {
+      const instance: StoreState = {
+        audio: AudioSettingsSliceManager.create(data?.audio)(...args),
+        video: VideoSettingsSliceManager.create(data?.video)(...args),
+        general: GeneralSettingsSliceManager.create(data?.general)(...args),
+        toData: () => {
+          const state = args[1]();
 
-let _useStore: ReturnType<ReturnType<typeof create<StoreState>>>;
+          return new Settings({
+            audio: state.audio.toData(),
+            video: state.video.toData(),
+            general: state.general.toData(),
+          });
+        },
+        merge: (state, data) => {
+          state.audio = state.audio.merge(state.audio, data.audio);
+          state.video = state.video.merge(state.video, data.video);
+          state.general = state.general.merge(state.general, data.general);
 
-export function createStore(data?: SettingsSchema) {
-  _useStore = create<StoreState>()(
+          return state;
+        },
+      };
+
+      return instance;
+    };
+  },
+};
+
+// export let useStore: ReturnType<ReturnType<typeof create<StoreState>>>;
+
+export function createStore(data?: Settings) {
+  return create<StoreState>()(
     immer((...args) => {
-      return createSettingsSlice(data)(...args);
+      return SettingsStore.create(data)(...args);
     })
   );
-
-  return useStore;
 }
 
-export function useStore<U>(fn: (state: StoreState) => U): U {
-  return _useStore(fn);
-}
-
-useStore.setState = (newState: Settings) => {
-  _useStore.setState((state) => {
-    return {
-      audio: {
-        ...state.audio,
-        ...newState.audio,
-      },
-      video: {
-        ...state.video,
-        ...newState.video,
-      },
-      general: {
-        ...state.general,
-        ...newState.general,
-      },
-    };
+export function hydrateStore(
+  store: ReturnType<typeof createStore>,
+  data: Settings
+  // validate = true
+) {
+  store.setState((s) => {
+    return s.merge(s, data);
   });
-};
-
-useStore.getState = () => {
-  return _useStore.getState();
-};
+}

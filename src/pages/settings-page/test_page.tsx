@@ -1,6 +1,6 @@
 import { Button, Input } from "@heroui/react";
-import * as TestStore from "../../store/_combined_settings";
-import * as PageStore from "../../store/_combined_page_store";
+import * as TestStore from "../../store/settings";
+import * as PageStore from "./store";
 
 const settingsStore = TestStore.createStore();
 const pageStore = PageStore.createPageStore(settingsStore);
@@ -28,7 +28,7 @@ const TheStore = () => {
   const hydrateStore = () => {
     PageStore.hydrateStore(pageStore, {
       general: { outputPath: "Path" },
-      audio: { isWorstQuality: false },
+      audio: { quality: "wa" },
       video: { height: "144", heightConstraint: "=" },
     });
   };
@@ -96,40 +96,46 @@ const GeneralSettings = () => {
 };
 
 const AudioSettings = () => {
-  const { isWorstQuality } = pageStore((s) => s.audio);
+  const { quality } = pageStore((s) => s.audio);
 
-  const setValue = () => {
-    isWorstQuality.setValue(!isWorstQuality.value);
+  const toggleValue = () => {
+    quality.setValue(
+      quality.value === "" ? "wa" : quality.value === "wa" ? "ba" : ""
+    );
   };
 
-  const setError = () => {
-    isWorstQuality.setError(isWorstQuality.error === null ? "ERROR" : null);
-  };
-
-  const validate = () => {
-    isWorstQuality.setError(isWorstQuality.validate(""));
+  const toggleError = () => {
+    quality.setError(quality.error === null ? quality.validate(123) : null);
   };
 
   const update = () => {
-    isWorstQuality.update(false);
+    quality.update(quality.value);
   };
 
-  const hydrateSlice = () => {
-    pageStore.getState().audio.hydrate({ isWorstQuality: false });
+  const resetSlice = () => {
+    pageStore.getState().audio.hydrate({ quality: "" });
   };
 
-  console.log("RENDER: Audio Settings - ", isWorstQuality);
+  console.log("RENDER: Audio Settings - ", quality);
 
   return (
     <div className="flex flex-col gap-4">
       <h1>Audio Settings</h1>
+      <Input
+        label="Audio quality"
+        value={quality.value}
+        onValueChange={(v) => quality.update(v as any)}
+      />
       <div className="flex gap-4">
-        <Button onPress={setValue}>Toggle Value</Button>
-        <Button onPress={setError}>Toggle Error</Button>
-        <Button onPress={validate}>Validate</Button>
+        <Button onPress={toggleValue}>Toggle value</Button>
+        <Button onPress={toggleError}>Toggle error</Button>
         <Button onPress={update}>Update</Button>
-        <Button onPress={hydrateSlice}>Hydrate Slice</Button>
+        <Button onPress={resetSlice}>Reset slice</Button>
       </div>
+      <div>
+        Slice changed: {pageStore.getState().audio.hasChanged().toString()}
+      </div>
+      <div>Quality changed: {quality.hasChanged().toString()}</div>
     </div>
   );
 };

@@ -1,47 +1,85 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import { ImmerSliceCreator } from "./types";
+import { SliceManager, StoreSlice, StoreSliceData } from "./types";
 
-type ImmerState<T> = ImmerSliceCreator<T, StoreState>;
-
-interface AppState {
+interface StateData {
   url: string;
 }
 
-interface AppActions {
-  setUrl: (value: string) => void;
-}
-
-type AppSlice = AppState & AppActions;
+export type AppSliceData = StoreSliceData<StateData>;
+export type AppSlice = StoreSlice<StateData, AppSliceData>;
 
 interface StoreState {
   app: AppSlice;
 }
 
-const createAppSlice: (data?: AppState) => ImmerState<AppSlice> =
-  (data) => (set) => ({
-    url: data?.url || "",
+const CreateAppSlice: SliceManager<StateData, AppSlice, StoreState> = {
+  create: (data) => {
+    return (...args) => {
+      return CreateAppSlice.extends(data)(...args);
+    };
+  },
 
-    setUrl: (value: string) =>
-      set((state) => {
-        state.app.url = value;
-      }),
-  });
+  extends: (data) => (set, get) => {
+    const slice: AppSlice = {
+      url: {
+        value: data?.url ?? "",
+        error: null,
+        setValue: (value) => {
+          set((s) => {
+            s.app.url.value = value;
+            return s;
+          });
+        },
+        setError: (value) => {
+          set((s) => {
+            s.app.url.error = value;
+            return s;
+          });
+        },
+        update: (value) => {
+          const state = get().app;
 
-let _useStore: ReturnType<ReturnType<typeof create<StoreState>>>;
+          state.url.setValue(value);
+          state.url.setError(state.url.validate(value));
+        },
+        validate: (value) => {
+          return typeof value !== "string" ? "Invalid url" : null;
+        },
+      },
 
-export function createStore(data?: AppState) {
-  _useStore = create<StoreState>()(
+      toData: () => {
+        const state = get().app;
+
+        return {
+          url: state.url.value,
+        };
+      },
+
+      merge: (state, data) => {
+        state.url.value = data.url;
+
+        return state;
+      },
+
+      hydrate: (data) => {
+        set((s) => {
+          s.app = slice.merge(s.app, data);
+          return s;
+        });
+      },
+    };
+
+    return slice;
+  },
+};
+
+export function createStore(data?: StateData) {
+  return create<StoreState>()(
     immer((...args) => {
       return {
-        app: createAppSlice(data)(...args),
+        app: CreateAppSlice.create(data)(...args),
       };
     })
   );
-
-  return useStore;
-}
-
-export function useStore<U>(fn: (state: StoreState) => U): U {
-  return _useStore(fn);
 }

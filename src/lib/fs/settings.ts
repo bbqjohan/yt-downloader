@@ -166,8 +166,10 @@ export class VideoSettings implements VideoSettingsSchema {
 }
 
 export const AudioSettingsSchema = z.object({
-  isWorstQuality: z.boolean(),
+  quality: z.literal(["wa", "ba", ""]),
 });
+
+export type AudioQuality = z.infer<typeof AudioSettingsSchema.shape.quality>;
 
 export type AudioSettingsSchema = z.infer<typeof AudioSettingsSchema>;
 
@@ -178,7 +180,7 @@ export type AudioSettingsSchema = z.infer<typeof AudioSettingsSchema>;
  * default values of the settings, just make an instance without arguments.
  */
 export class AudioSettings implements AudioSettingsSchema {
-  isWorstQuality = false;
+  quality: AudioQuality = "";
 
   constructor(data?: DeepPartial<AudioSettingsSchema>) {
     mergeClassArgs(AudioSettingsSchema, this, data);

@@ -12,7 +12,7 @@ import {
 } from "@heroui/react";
 import { BsArrowCounterclockwise, BsArrowLeft } from "react-icons/bs";
 import { SettingsStore, useStore as usePageStore } from "./store";
-import { SettingsStore as _SettingsStore } from "../../store/_combined_settings";
+import { SettingsStore as _SettingsStore } from "../../store/settings";
 import { useStores } from "../../store/stores";
 import { useEffect, useState } from "react";
 import { Key } from "@react-types/shared";
