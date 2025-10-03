@@ -6,14 +6,16 @@ import { createAllStores } from "./store/global-stores";
 import { File as SettingsFile } from "./lib/fs/settings";
 import { createBrowserRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
-// import { DownloadPage } from "./pages/download-page";
+import { DefaultSettingsPage } from "./pages/settings-page/page";
+import { SettingsPageStoreCreator } from "./pages/settings-page/store";
+import { DownloadPage } from "./pages/download-page";
 
 await SettingsFile.create();
-const settings = await SettingsFile.read();
+const settingsFileData = await SettingsFile.read();
 
 createAllStores({
   settings: {
-    ...settings,
+    ...settingsFileData,
   },
   app: {
     app: {
@@ -21,9 +23,6 @@ createAllStores({
     },
   },
 });
-
-import { DefaultSettingsPage } from "./pages/settings-page/page";
-import { SettingsPageStoreCreator } from "./pages/settings-page/store";
 
 const rootEl = document.getElementById("root");
 
@@ -36,14 +35,15 @@ const router = createBrowserRouter([
     path: "/",
     Component: App,
     children: [
-      // { index: true, Component: App },
       {
         index: true,
-        // path: "settings",
+        Component: DownloadPage,
+      },
+      {
+        path: "settings",
         Component: DefaultSettingsPage,
         loader: async () => {
-          // Discard any state changes on this page.
-          SettingsPageStoreCreator(settings);
+          SettingsPageStoreCreator(await SettingsFile.read());
         },
       },
     ],
@@ -53,7 +53,7 @@ const router = createBrowserRouter([
 ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>
     <HeroUIProvider>
-      <RouterProvider router={router} />
+      <RouterProvider router={router} key="settings" />
     </HeroUIProvider>
   </React.StrictMode>
 );

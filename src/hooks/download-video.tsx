@@ -1,7 +1,11 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 import { DownloadEvent } from "../lib/download-engine";
-import { VideoHeightConstraints, VideoHeights } from "../lib/fs/settings";
+import {
+  VideoHeightConstraints,
+  VideoHeights,
+  VideoSettingsSchema,
+} from "../lib/fs/settings";
 
 /**
  * Interface for the download invocation parameters.
@@ -210,6 +214,23 @@ export const useDownloadVideo = () => {
 
   return {
     startDownload: (parameters: DownloadParameters) => {
+      if (VideoSettingsSchema.shape.height.parse(parameters.videoHeight)) {
+        throw Error(
+          parameters.videoHeight + " is not a legitimate video height."
+        );
+      }
+
+      if (
+        VideoSettingsSchema.shape.heightConstraint.parse(
+          parameters.videoHeightConstraint
+        )
+      ) {
+        throw Error(
+          parameters.videoHeightConstraint +
+            " is not a legitimate video height constraint."
+        );
+      }
+
       setDownloadItem(
         new VideoDownloadItem({
           parameters,

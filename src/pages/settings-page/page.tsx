@@ -13,7 +13,7 @@ import {
 } from "@heroui/react";
 import { BsArrowCounterclockwise, BsArrowLeft } from "react-icons/bs";
 
-import { useSettingsStore } from "../../store/global-stores";
+import { getStore, useSettingsStore } from "../../store/global-stores";
 import { useEffect, useState } from "react";
 import { Key } from "@react-types/shared";
 import {
@@ -30,7 +30,6 @@ import { usePageStore } from "./store";
 export function DefaultSettingsPage() {
   const [selectedTab, setSelectedTab] = useState<Key>("audio");
 
-  console.log("Render: Page");
   return (
     <div className="flex justify-center">
       <div className="grid grid-rows-[4rem_1fr] grid-cols-[200px_1fr] w-full max-w-4xl h-screen px-2">
@@ -42,7 +41,7 @@ export function DefaultSettingsPage() {
   );
 }
 
-function useSettings() {
+function useSettingsFile() {
   const [newState, setNewState] = useState<Settings>();
   const [isWriting, setIsWriting] = useState(false);
   const [promise, setPromise] = useState<Promise<void>>();
@@ -54,7 +53,9 @@ function useSettings() {
       const updateSettings = async () => {
         try {
           await SettingsFile.write(newState);
-          useSettingsStore().getState().hydrate(newState);
+          getStore((s) => s.settings)
+            .getState()
+            .hydrate(newState);
         } catch (e: any) {
           // Do nothing.
         }
@@ -62,7 +63,6 @@ function useSettings() {
         if (mounted) {
           setNewState(undefined);
           setIsWriting(false);
-          console.log("Settings isWriting");
         }
       };
 
@@ -89,15 +89,15 @@ function useSettings() {
 }
 
 const Topbar = () => {
-  const hasUnsavedChanges = usePageStore((s) =>
-    s.compare(useSettingsStore().getState())
-  );
-  const settings = useSettings();
+  const hasUnsavedChanges = usePageStore((s) => {
+    return !s.isEqual(getStore((s) => s.settings.getState()));
+  });
+  const settingsFile = useSettingsFile();
   const [openModal, setOpenModal] = useState(false);
   const navigate = useNavigate();
 
   const applySettings = () => {
-    settings.write(usePageStore.getState().toData());
+    settingsFile.write(usePageStore.getState().toData());
   };
 
   const onPageLeave = () => {
@@ -118,32 +118,28 @@ const Topbar = () => {
   };
 
   useEffect(() => {
-    if (settings.promise && openModal) {
-      settings.promise.then(() => {
+    if (settingsFile.promise && openModal) {
+      settingsFile.promise.then(() => {
         setOpenModal(false);
         navigate("/");
       });
     }
-  }, [settings.promise, openModal]);
-
-  console.log("Render: Topbar");
+  }, [settingsFile.promise, openModal]);
 
   return (
     <div className="flex col-span-full py-4 border-b-1 border-gray-300 items-center">
       <div className="grow">
-        {/* <Link to="/"> */}
         <Button variant="light" onPress={onPageLeave}>
           <BsArrowLeft />
           Go back
         </Button>
-        {/* </Link> */}
       </div>
       <div>
         <Button
           variant="solid"
           color="primary"
           onPress={applySettings}
-          isDisabled={settings.isWriting || !hasUnsavedChanges}
+          isDisabled={settingsFile.isWriting || !hasUnsavedChanges}
         >
           Apply
         </Button>
@@ -165,7 +161,6 @@ const Sidebar = ({
   selectedKey: TabsProps["selectedKey"];
   onSelectionChange: TabsProps["onSelectionChange"];
 }) => {
-  console.log("Render: Sidebar");
   return (
     <div className="flex flex-col gap-4 py-4">
       <Tabs
@@ -190,7 +185,6 @@ const Content = ({
 }: {
   selectedTab: TabsProps["selectedKey"];
 }) => {
-  console.log("Render: Content");
   return (
     <div className="py-4 pl-4 ">
       {(selectedTab === "audio" && <AudioSettings />) ||
@@ -201,7 +195,6 @@ const Content = ({
 };
 
 const AudioSettings = () => {
-  console.log("Render: AudioSettings");
   return (
     <div className="flex flex-col gap-4 overflow-y-auto h-full">
       {/* Content */}
@@ -214,15 +207,13 @@ const AudioSettings = () => {
 const AudioQuality = () => {
   const { quality } = usePageStore((state) => state.audio);
   const hasChanged = usePageStore((s) => {
-    return !s.audio.quality.compare(useSettingsStore().getState());
+    return !s.audio.quality.isEqual(getStore((s) => s.settings).getState());
   });
-  const ogValue = useSettingsStore()((s) => s.audio.quality.value);
+  const ogValue = useSettingsStore((s) => s.audio.quality.value);
 
   const resetIsWorstAudioQuality = () => {
     quality.setValue(ogValue);
   };
-
-  console.log("Render: AudioQuality");
 
   return (
     <div className="flex flex-col gap-2">
@@ -260,10 +251,10 @@ const VideoSettings = () => {
 
 const VideoHeight = () => {
   const { height } = usePageStore((state) => state.video);
-  const hasChanged = usePageStore((s) =>
-    s.video.height.compare(useSettingsStore().getState())
+  const hasChanged = usePageStore(
+    (s) => !s.video.height.isEqual(getStore((s) => s.settings).getState())
   );
-  const ogValue = useSettingsStore()((s) => s.video.height.value);
+  const ogValue = useSettingsStore((s) => s.video.height.value);
 
   const reset = () => {
     height.setValue(ogValue);
@@ -288,10 +279,11 @@ const VideoHeight = () => {
 
 const VideoHeightConstraint = () => {
   const { heightConstraint } = usePageStore((state) => state.video);
-  const hasChanged = usePageStore((s) =>
-    s.video.heightConstraint.compare(useSettingsStore().getState())
+  const hasChanged = usePageStore(
+    (s) =>
+      !s.video.heightConstraint.isEqual(getStore((s) => s.settings).getState())
   );
-  const ogValue = useSettingsStore()((s) => s.video.heightConstraint.value);
+  const ogValue = useSettingsStore((s) => s.video.heightConstraint.value);
 
   const reset = () => {
     heightConstraint.setValue(ogValue);
@@ -328,10 +320,10 @@ const GeneralSettings = () => {
 
 const OutputPath = () => {
   const { outputPath } = usePageStore((state) => state.general);
-  const hasChanged = usePageStore((s) =>
-    s.general.outputPath.compare(useSettingsStore().getState())
+  const hasChanged = usePageStore(
+    (s) => !s.general.outputPath.isEqual(getStore((s) => s.settings).getState())
   );
-  const ogValue = useSettingsStore()((s) => s.general.outputPath.value);
+  const ogValue = useSettingsStore((s) => s.general.outputPath.value);
 
   const reset = () => {
     outputPath.setValue(ogValue);

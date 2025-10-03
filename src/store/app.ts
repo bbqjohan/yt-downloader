@@ -35,7 +35,7 @@ const AppSliceCreator: SliceCreatorFn<AppSliceData, AppSlice, AppStore> =
         validate: (value) => {
           return typeof value !== "string" ? "Invalid url" : null;
         },
-        compare: () => false,
+        isEqual: () => false,
       },
 
       toData: () => {
@@ -59,7 +59,7 @@ const AppSliceCreator: SliceCreatorFn<AppSliceData, AppSlice, AppStore> =
         });
       },
 
-      compare: () => false,
+      isEqual: () => false,
     };
 
     return slice;
@@ -69,7 +69,7 @@ interface StoreData {
   app: AppSliceData;
 }
 
-type AppStore = Store<
+export type AppStore = Store<
   StoreData,
   {
     app: AppSlice;

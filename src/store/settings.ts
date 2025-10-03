@@ -8,7 +8,7 @@ import {
   VideoSettingsSchema,
 } from "../lib/fs/settings";
 import {
-  CompareFn,
+  Compare,
   mergeSliceWithData,
   Slice,
   SliceCreatorFn,
@@ -49,7 +49,7 @@ export const AudioSliceCreator: SliceCreatorFn<
         state.quality.setValue(value);
         state.quality.setError(state.quality.validate(value));
       },
-      compare: (otherStore) => {
+      isEqual: (otherStore) => {
         return get().audio.quality.value === otherStore.audio.quality.value;
       },
     },
@@ -70,8 +70,8 @@ export const AudioSliceCreator: SliceCreatorFn<
         s.audio.merge(s.audio, data);
       });
     },
-    compare: (otherStore) => {
-      return get().audio.quality.compare(otherStore);
+    isEqual: (otherStore) => {
+      return get().audio.quality.isEqual(otherStore);
     },
   };
 
@@ -108,7 +108,7 @@ export const VideoSliceCreator: SliceCreatorFn<
         state.height.setValue(value);
         state.height.setError(state.height.validate(value));
       },
-      compare: (otherStore) => {
+      isEqual: (otherStore) => {
         return get().video.height.value === otherStore.video.height.value;
       },
     },
@@ -135,7 +135,7 @@ export const VideoSliceCreator: SliceCreatorFn<
         state.heightConstraint.setValue(value);
         state.heightConstraint.setError(state.heightConstraint.validate(value));
       },
-      compare: (otherStore) => {
+      isEqual: (otherStore) => {
         return (
           get().video.heightConstraint.value ===
           otherStore.video.heightConstraint.value
@@ -161,10 +161,10 @@ export const VideoSliceCreator: SliceCreatorFn<
         s.video = s.video.merge(s.video, data);
       });
     },
-    compare: (otherStore) => {
+    isEqual: (otherStore) => {
       return (
-        get().video.height.compare(otherStore) ||
-        get().video.heightConstraint.compare(otherStore)
+        get().video.height.isEqual(otherStore) &&
+        get().video.heightConstraint.isEqual(otherStore)
       );
     },
   };
@@ -202,7 +202,7 @@ export const GeneralSliceCreator: SliceCreatorFn<
         state.outputPath.setValue(value);
         state.outputPath.setError(state.outputPath.validate(value));
       },
-      compare: (otherStore) => {
+      isEqual: (otherStore) => {
         return (
           get().general.outputPath.value === otherStore.general.outputPath.value
         );
@@ -225,8 +225,8 @@ export const GeneralSliceCreator: SliceCreatorFn<
         s.general = s.general.merge(s.general, data);
       });
     },
-    compare: (otherStore) => {
-      return get().general.outputPath.compare(otherStore);
+    isEqual: (otherStore) => {
+      return get().general.outputPath.isEqual(otherStore);
     },
   };
 
@@ -239,8 +239,7 @@ export type SettingsStore = Store<
     audio: AudioSlice;
     video: VideoSlice;
     general: GeneralSlice;
-    compare: CompareFn<SettingsStore>;
-  }
+  } & Compare<SettingsStore>
 >;
 
 export function SettingsStoreCreator(data?: Settings) {
@@ -271,13 +270,13 @@ export function SettingsStoreCreator(data?: Settings) {
             get().merge(s, data);
           });
         },
-        compare: (otherStore) => {
+        isEqual: (otherStore) => {
           const state = get();
 
           return (
-            state.audio.compare(otherStore) ||
-            state.video.compare(otherStore) ||
-            state.general.compare(otherStore)
+            state.audio.isEqual(otherStore) &&
+            state.video.isEqual(otherStore) &&
+            state.general.isEqual(otherStore)
           );
         },
       };

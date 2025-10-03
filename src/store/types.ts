@@ -21,7 +21,7 @@ export interface Value<TData, TStore> {
   setError: (value: SliceValueError) => void;
   update: (value: TData) => void;
   validate: (value: any) => SliceValueError;
-  compare: CompareFn<TStore>;
+  isEqual: CompareFn<TStore>;
 }
 
 export type ToValues<TData, TStore> = {
@@ -52,7 +52,7 @@ export interface Hydrate<T> {
 }
 
 export interface Compare<TStore> {
-  compare: CompareFn<TStore>;
+  isEqual: CompareFn<TStore>;
 }
 
 export interface SliceArgs {
