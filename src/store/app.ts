@@ -1,26 +1,15 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import { SliceManager, StoreSlice, StoreSliceData } from "./types";
+import { Slice, Store, SliceCreatorFn, CompareFn } from "./types";
 
-interface StateData {
+export interface AppSliceData {
   url: string;
 }
 
-export type AppSliceData = StoreSliceData<StateData>;
-export type AppSlice = StoreSlice<StateData, AppSliceData>;
+export type AppSlice = Slice<AppSliceData, AppStore>;
 
-interface StoreState {
-  app: AppSlice;
-}
-
-const CreateAppSlice: SliceManager<StateData, AppSlice, StoreState> = {
-  create: (data) => {
-    return (...args) => {
-      return CreateAppSlice.extends(data)(...args);
-    };
-  },
-
-  extends: (data) => (set, get) => {
+const AppSliceCreator: SliceCreatorFn<AppSliceData, AppSlice, AppStore> =
+  (data) => (set, get) => {
     const slice: AppSlice = {
       url: {
         value: data?.url ?? "",
@@ -46,6 +35,7 @@ const CreateAppSlice: SliceManager<StateData, AppSlice, StoreState> = {
         validate: (value) => {
           return typeof value !== "string" ? "Invalid url" : null;
         },
+        compare: () => false,
       },
 
       toData: () => {
@@ -68,18 +58,51 @@ const CreateAppSlice: SliceManager<StateData, AppSlice, StoreState> = {
           return s;
         });
       },
+
+      compare: () => false,
     };
 
     return slice;
-  },
-};
+  };
 
-export function createStore(data?: StateData) {
-  return create<StoreState>()(
-    immer((...args) => {
-      return {
-        app: CreateAppSlice.create(data)(...args),
+interface StoreData {
+  app: AppSliceData;
+}
+
+type AppStore = Store<
+  StoreData,
+  {
+    app: AppSlice;
+    compare: CompareFn<AppStore>;
+  }
+>;
+
+export function AppStoreCreator(data?: StoreData) {
+  return create<AppStore>()(
+    immer((set, get, store) => {
+      const instance: AppStore = {
+        app: AppSliceCreator(data?.app)(set, get, store),
+        toData: () => {
+          const state = get();
+
+          return {
+            app: state.app.toData(),
+          };
+        },
+        merge: (state, data) => {
+          state.app = state.app.merge(state.app, data.app);
+
+          return state;
+        },
+        hydrate: (data) => {
+          set((s) => {
+            get().merge(s, data);
+          });
+        },
+        compare: () => false,
       };
+
+      return instance;
     })
   );
 }

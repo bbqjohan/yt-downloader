@@ -2,17 +2,11 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { HeroUIProvider } from "@heroui/react";
-import { createAllStores } from "./store/stores";
+import { createAllStores } from "./store/global-stores";
 import { File as SettingsFile } from "./lib/fs/settings";
-import {
-  createStore as createSettingsPageStore,
-  SettingsStore,
-} from "./pages/settings-page/store";
 import { createBrowserRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
-import { DownloadPage } from "./pages/download-page";
-import { DefaultSettingsPage } from "./pages/settings-page/page";
-import { Test_Page } from "./pages/settings-page/test_page";
+// import { DownloadPage } from "./pages/download-page";
 
 await SettingsFile.create();
 const settings = await SettingsFile.read();
@@ -22,11 +16,14 @@ createAllStores({
     ...settings,
   },
   app: {
-    url: "",
+    app: {
+      url: "",
+    },
   },
 });
 
-// createSettingsPageStore({ ...settings });
+import { DefaultSettingsPage } from "./pages/settings-page/page";
+import { SettingsPageStoreCreator } from "./pages/settings-page/store";
 
 const rootEl = document.getElementById("root");
 
@@ -39,13 +36,14 @@ const router = createBrowserRouter([
     path: "/",
     Component: App,
     children: [
-      { index: true, Component: Test_Page },
+      // { index: true, Component: App },
       {
-        path: "settings",
+        index: true,
+        // path: "settings",
         Component: DefaultSettingsPage,
         loader: async () => {
           // Discard any state changes on this page.
-          // SettingsStore.replace({ ...settings });
+          SettingsPageStoreCreator(settings);
         },
       },
     ],

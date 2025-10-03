@@ -1,19 +1,19 @@
 import {
   Button,
-  Checkbox,
   Modal,
   ModalBody,
   ModalContent,
   ModalFooter,
   ModalHeader,
+  Radio,
+  RadioGroup,
   Tab,
   Tabs,
   TabsProps,
 } from "@heroui/react";
 import { BsArrowCounterclockwise, BsArrowLeft } from "react-icons/bs";
-import { SettingsStore, useStore as usePageStore } from "./store";
-import { SettingsStore as _SettingsStore } from "../../store/settings";
-import { useStores } from "../../store/stores";
+
+import { useSettingsStore } from "../../store/global-stores";
 import { useEffect, useState } from "react";
 import { Key } from "@react-types/shared";
 import {
@@ -25,10 +25,12 @@ import { useNavigate } from "react-router";
 import { VideoHeightSelect } from "../../components/video-height-select";
 import { VideoHeightConstraintSelect } from "../../components/video-height-constraint-select";
 import { VideoOutputPath } from "../../components/video-output-path";
+import { usePageStore } from "./store";
 
 export function DefaultSettingsPage() {
-  const [selectedTab, setSelectedTab] = useState<Key>("general");
+  const [selectedTab, setSelectedTab] = useState<Key>("audio");
 
+  console.log("Render: Page");
   return (
     <div className="flex justify-center">
       <div className="grid grid-rows-[4rem_1fr] grid-cols-[200px_1fr] w-full max-w-4xl h-screen px-2">
@@ -52,8 +54,7 @@ function useSettings() {
       const updateSettings = async () => {
         try {
           await SettingsFile.write(newState);
-          useStores().settings.setState(newState);
-          _SettingsStore.replace(newState);
+          useSettingsStore().getState().hydrate(newState);
         } catch (e: any) {
           // Do nothing.
         }
@@ -88,13 +89,15 @@ function useSettings() {
 }
 
 const Topbar = () => {
-  const hasUnsavedChanges = usePageStore(() => SettingsStore.hasChanged());
+  const hasUnsavedChanges = usePageStore((s) =>
+    s.compare(useSettingsStore().getState())
+  );
   const settings = useSettings();
   const [openModal, setOpenModal] = useState(false);
   const navigate = useNavigate();
 
   const applySettings = () => {
-    settings.write(SettingsStore.to());
+    settings.write(usePageStore.getState().toData());
   };
 
   const onPageLeave = () => {
@@ -122,6 +125,8 @@ const Topbar = () => {
       });
     }
   }, [settings.promise, openModal]);
+
+  console.log("Render: Topbar");
 
   return (
     <div className="flex col-span-full py-4 border-b-1 border-gray-300 items-center">
@@ -160,6 +165,7 @@ const Sidebar = ({
   selectedKey: TabsProps["selectedKey"];
   onSelectionChange: TabsProps["onSelectionChange"];
 }) => {
+  console.log("Render: Sidebar");
   return (
     <div className="flex flex-col gap-4 py-4">
       <Tabs
@@ -184,6 +190,7 @@ const Content = ({
 }: {
   selectedTab: TabsProps["selectedKey"];
 }) => {
+  console.log("Render: Content");
   return (
     <div className="py-4 pl-4 ">
       {(selectedTab === "audio" && <AudioSettings />) ||
@@ -194,6 +201,7 @@ const Content = ({
 };
 
 const AudioSettings = () => {
+  console.log("Render: AudioSettings");
   return (
     <div className="flex flex-col gap-4 overflow-y-auto h-full">
       {/* Content */}
@@ -204,35 +212,36 @@ const AudioSettings = () => {
 };
 
 const AudioQuality = () => {
-  const { isWorstQuality } = usePageStore((state) => state.audio);
-
-  const isWorstQualityChanged = usePageStore((s) =>
-    s.audio.isWorstQuality.hasChanged()
-  );
-
-  const isWorstQualityOg = useStores().settings((s) => s.audio.isWorstQuality);
+  const { quality } = usePageStore((state) => state.audio);
+  const hasChanged = usePageStore((s) => {
+    return !s.audio.quality.compare(useSettingsStore().getState());
+  });
+  const ogValue = useSettingsStore()((s) => s.audio.quality.value);
 
   const resetIsWorstAudioQuality = () => {
-    isWorstQuality.setValue(isWorstQualityOg);
+    quality.setValue(ogValue);
   };
+
+  console.log("Render: AudioQuality");
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex gap-2 items-center">
         <div className="text-sm px-1">Audio quality</div>
-        {isWorstQualityChanged && (
+        {hasChanged && (
           <Button isIconOnly variant="light" onPress={resetIsWorstAudioQuality}>
             <BsArrowCounterclockwise />
           </Button>
         )}
       </div>
       <div className="flex gap-4">
-        <Checkbox
-          isSelected={isWorstQuality.value}
-          onValueChange={isWorstQuality.setValue}
+        <RadioGroup
+          value={quality.value}
+          onValueChange={(v) => quality.setValue(v as any)}
         >
-          Worst quality
-        </Checkbox>
+          <Radio value="wa">Worst</Radio>
+          <Radio value="ba">Best</Radio>
+        </RadioGroup>
       </div>
     </div>
   );
@@ -251,11 +260,13 @@ const VideoSettings = () => {
 
 const VideoHeight = () => {
   const { height } = usePageStore((state) => state.video);
-  const hasChanged = usePageStore((s) => s.video.height.hasChanged());
-  const originalVal = useStores().settings((s) => s.video.height);
+  const hasChanged = usePageStore((s) =>
+    s.video.height.compare(useSettingsStore().getState())
+  );
+  const ogValue = useSettingsStore()((s) => s.video.height.value);
 
   const reset = () => {
-    height.setValue(originalVal);
+    height.setValue(ogValue);
   };
 
   return (
@@ -277,11 +288,13 @@ const VideoHeight = () => {
 
 const VideoHeightConstraint = () => {
   const { heightConstraint } = usePageStore((state) => state.video);
-  const hasChanged = usePageStore((s) => s.video.heightConstraint.hasChanged());
-  const originalVal = useStores().settings((s) => s.video.heightConstraint);
+  const hasChanged = usePageStore((s) =>
+    s.video.heightConstraint.compare(useSettingsStore().getState())
+  );
+  const ogValue = useSettingsStore()((s) => s.video.heightConstraint.value);
 
   const reset = () => {
-    heightConstraint.setValue(originalVal);
+    heightConstraint.setValue(ogValue);
   };
 
   return (
@@ -315,11 +328,13 @@ const GeneralSettings = () => {
 
 const OutputPath = () => {
   const { outputPath } = usePageStore((state) => state.general);
-  const hasChanged = usePageStore((s) => s.general.outputPath.hasChanged());
-  const originalVal = useStores().settings((s) => s.general.outputPath);
+  const hasChanged = usePageStore((s) =>
+    s.general.outputPath.compare(useSettingsStore().getState())
+  );
+  const ogValue = useSettingsStore()((s) => s.general.outputPath.value);
 
   const reset = () => {
-    outputPath.setValue(originalVal);
+    outputPath.setValue(ogValue);
   };
 
   return (

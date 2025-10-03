@@ -11,7 +11,7 @@ import { OneColumnLayout } from "../layouts/one-column";
 import { memo, useState } from "react";
 import { Key } from "@react-types/shared";
 import { useDownloadVideo, VideoDownloadItem } from "../hooks/download-video";
-import { useStores } from "../store/stores";
+import { globalStores } from "../store/global-stores";
 import { VideoSettingsSchema } from "../lib/fs/settings";
 
 import { Link } from "react-router";
@@ -21,13 +21,15 @@ import { VideoHeightConstraintSelect } from "../components/video-height-constrai
 import { VideoOutputPath } from "../components/video-output-path";
 
 export function DownloadPage() {
-  const url = useStores().app((state) => state.app.url);
-  const isWorstQuality = useStores().settings(
+  const url = globalStores().app((state) => state.app.url);
+  const isWorstQuality = globalStores().settings(
     (state) => state.audio.isWorstQuality
   );
-  const outputPath = useStores().settings((state) => state.general.outputPath);
-  const videoHeight = useStores().settings((state) => state.video.height);
-  const videoHeightConstraint = useStores().settings(
+  const outputPath = globalStores().settings(
+    (state) => state.general.outputPath
+  );
+  const videoHeight = globalStores().settings((state) => state.video.height);
+  const videoHeightConstraint = globalStores().settings(
     (state) => state.video.heightConstraint
   );
 
@@ -89,7 +91,7 @@ interface UrlInputProps {
 }
 
 const UrlInput = memo(({ isDisabled, onDownload }: UrlInputProps) => {
-  const { url, setUrl } = useStores().app((state) => state.app);
+  const { url, setUrl } = globalStores().app((state) => state.app);
 
   return (
     <div className="text-black flex flex-col gap-4">
@@ -134,7 +136,7 @@ const SettingsSection = memo(() => {
 });
 
 const AudioSettings = () => {
-  const { isWorstQuality, setIsWorstQuality } = useStores().settings(
+  const { isWorstQuality, setIsWorstQuality } = globalStores().settings(
     (state) => state.audio
   );
 
@@ -148,7 +150,7 @@ const AudioSettings = () => {
 };
 
 const GeneralSettings = () => {
-  const { outputPath, setOutputPath } = useStores().settings(
+  const { outputPath, setOutputPath } = globalStores().settings(
     (state) => state.general
   );
 
@@ -163,7 +165,7 @@ const GeneralSettings = () => {
 
 const VideoSettings = () => {
   const { height, setHeight, heightConstraint, setHeightConstraint } =
-    useStores().settings((state) => state.video);
+    globalStores().settings((state) => state.video);
 
   return (
     <div className="flex flex-col gap-4">
