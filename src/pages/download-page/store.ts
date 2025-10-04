@@ -3,12 +3,8 @@ import { SettingsStoreCreator } from "../../store/settings";
 
 export let useStore: ReturnType<typeof SettingsStoreCreator>;
 
-export function Create(data?: Settings) {
+export function Create(settings?: Settings) {
   if (!useStore) {
-    useStore = SettingsStoreCreator(data);
+    useStore = SettingsStoreCreator(settings);
   }
-}
-
-export function isCreated() {
-  return !!useStore;
 }

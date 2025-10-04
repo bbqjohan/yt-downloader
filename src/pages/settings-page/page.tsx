@@ -14,7 +14,7 @@ import {
 import { BsArrowCounterclockwise, BsArrowLeft } from "react-icons/bs";
 
 import { getStore, useSettingsStore } from "../../store/global-stores";
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { Key } from "@react-types/shared";
 import {
   Settings,
@@ -25,19 +25,31 @@ import { useNavigate } from "react-router";
 import { VideoHeightSelect } from "../../components/video-height-select";
 import { VideoHeightConstraintSelect } from "../../components/video-height-constraint-select";
 import { VideoOutputPath } from "../../components/video-output-path";
-import { usePageStore } from "./store";
+import { SettingsStoreCreator } from "../../store/settings";
+import * as PageStore from "./store";
+
+type PageContext = {
+  settingsStore: ReturnType<typeof SettingsStoreCreator>;
+};
+const PageContext = createContext<PageContext>(null!);
 
 export function DefaultSettingsPage() {
   const [selectedTab, setSelectedTab] = useState<Key>("audio");
+  const settingsStore = getStore((s) => s.settings);
 
   return (
-    <div className="flex justify-center">
-      <div className="grid grid-rows-[4rem_1fr] grid-cols-[200px_1fr] w-full max-w-4xl h-screen px-2">
-        <Topbar />
-        <Sidebar selectedKey={selectedTab} onSelectionChange={setSelectedTab} />
-        <Content selectedTab={selectedTab} />
+    <PageContext.Provider value={{ settingsStore }}>
+      <div className="flex justify-center">
+        <div className="grid grid-rows-[4rem_1fr] grid-cols-[200px_1fr] w-full max-w-4xl h-screen px-2">
+          <Topbar />
+          <Sidebar
+            selectedKey={selectedTab}
+            onSelectionChange={setSelectedTab}
+          />
+          <Content selectedTab={selectedTab} />
+        </div>
       </div>
-    </div>
+    </PageContext.Provider>
   );
 }
 
@@ -89,15 +101,16 @@ function useSettingsFile() {
 }
 
 const Topbar = () => {
-  const hasUnsavedChanges = usePageStore((s) => {
-    return !s.isEqual(getStore((s) => s.settings.getState()));
+  const { settingsStore } = useContext(PageContext);
+  const hasUnsavedChanges = PageStore.useStore((s) => {
+    return !s.isEqual(settingsStore.getState());
   });
   const settingsFile = useSettingsFile();
   const [openModal, setOpenModal] = useState(false);
   const navigate = useNavigate();
 
   const applySettings = () => {
-    settingsFile.write(usePageStore.getState().toData());
+    settingsFile.write(PageStore.useStore.getState().toData());
   };
 
   const onPageLeave = () => {
@@ -205,9 +218,10 @@ const AudioSettings = () => {
 };
 
 const AudioQuality = () => {
-  const { quality } = usePageStore((state) => state.audio);
-  const hasChanged = usePageStore((s) => {
-    return !s.audio.quality.isEqual(getStore((s) => s.settings).getState());
+  const { settingsStore } = useContext(PageContext);
+  const { quality } = PageStore.useStore((state) => state.audio);
+  const hasChanged = PageStore.useStore((s) => {
+    return !s.audio.quality.isEqual(settingsStore.getState());
   });
   const ogValue = useSettingsStore((s) => s.audio.quality.value);
 
@@ -250,9 +264,10 @@ const VideoSettings = () => {
 };
 
 const VideoHeight = () => {
-  const { height } = usePageStore((state) => state.video);
-  const hasChanged = usePageStore(
-    (s) => !s.video.height.isEqual(getStore((s) => s.settings).getState())
+  const { settingsStore } = useContext(PageContext);
+  const height = PageStore.useStore((state) => state.video.height);
+  const hasChanged = PageStore.useStore(
+    (s) => !s.video.height.isEqual(settingsStore.getState())
   );
   const ogValue = useSettingsStore((s) => s.video.height.value);
 
@@ -278,10 +293,12 @@ const VideoHeight = () => {
 };
 
 const VideoHeightConstraint = () => {
-  const { heightConstraint } = usePageStore((state) => state.video);
-  const hasChanged = usePageStore(
-    (s) =>
-      !s.video.heightConstraint.isEqual(getStore((s) => s.settings).getState())
+  const { settingsStore } = useContext(PageContext);
+  const heightConstraint = PageStore.useStore(
+    (state) => state.video.heightConstraint
+  );
+  const hasChanged = PageStore.useStore(
+    (s) => !s.video.heightConstraint.isEqual(settingsStore.getState())
   );
   const ogValue = useSettingsStore((s) => s.video.heightConstraint.value);
 
@@ -319,9 +336,10 @@ const GeneralSettings = () => {
 };
 
 const OutputPath = () => {
-  const { outputPath } = usePageStore((state) => state.general);
-  const hasChanged = usePageStore(
-    (s) => !s.general.outputPath.isEqual(getStore((s) => s.settings).getState())
+  const { settingsStore } = useContext(PageContext);
+  const { outputPath } = PageStore.useStore((state) => state.general);
+  const hasChanged = PageStore.useStore(
+    (s) => !s.general.outputPath.isEqual(settingsStore.getState())
   );
   const ogValue = useSettingsStore((s) => s.general.outputPath.value);
 

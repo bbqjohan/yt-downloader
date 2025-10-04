@@ -19,11 +19,6 @@ type Option<T> = {
 
 type Options = {
   [K in VideoHeightConstraintList[number]]: Option<K>;
-} & {
-  ss: {
-    key: "ss";
-    label: "asdf";
-  };
 };
 
 const _options: Options = {
@@ -38,10 +33,6 @@ const _options: Options = {
   ">=": {
     key: ">=",
     label: ">=",
-  },
-  ss: {
-    key: "ss",
-    label: "asdf",
   },
 };
 

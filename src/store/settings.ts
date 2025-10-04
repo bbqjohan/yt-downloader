@@ -13,7 +13,7 @@ import {
   Slice,
   SliceCreatorFn,
   Store,
-} from "./types";
+} from "../lib/store";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 

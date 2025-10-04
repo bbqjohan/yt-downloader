@@ -1,54 +1,12 @@
-import { Channel, invoke } from "@tauri-apps/api/core";
+import { Channel } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
-import { DownloadEvent } from "../lib/download-engine";
+import { SettingsSchema } from "../lib/fs/settings";
 import {
-  VideoHeightConstraints,
-  VideoHeights,
-  VideoSettingsSchema,
-} from "../lib/fs/settings";
-
-/**
- * Interface for the download invocation parameters.
- */
-interface DownloadInvokeParams {
-  url: string;
-  worstAudio: boolean;
-  outputPath: string;
-  videoHeight: VideoHeights;
-  videoHeightConstraint: VideoHeightConstraints;
-  onEvent: Channel<DownloadEvents>;
-}
-
-/**
- * Parameters required to start a video download.
- */
-export class DownloadParameters {
-  url: string;
-  worstAudio: boolean;
-  outputPath: string;
-  videoHeight: VideoHeights;
-  videoHeightConstraint: VideoHeightConstraints;
-
-  constructor({
-    url,
-    worstAudio = false,
-    outputPath = "",
-    videoHeight = "360",
-    videoHeightConstraint = "=",
-  }: {
-    url: string;
-    worstAudio?: boolean;
-    outputPath?: string;
-    videoHeight?: VideoHeights;
-    videoHeightConstraint?: VideoHeightConstraints;
-  }) {
-    this.url = url;
-    this.worstAudio = worstAudio;
-    this.outputPath = outputPath;
-    this.videoHeight = videoHeight;
-    this.videoHeightConstraint = videoHeightConstraint;
-  }
-}
+  download,
+  DownloadEvents,
+  DownloadParameters,
+  VideoDownloadItemError,
+} from "../lib/commands";
 
 /**
  * Statuses of a video download.
@@ -59,22 +17,6 @@ export class DownloadParameters {
  * - `""`: Download has not been started.
  */
 type VideoDownloadItemStatus = "started" | "finished" | "error" | "";
-
-export class VideoDownloadItemError {
-  message: string;
-  help: string;
-
-  constructor({
-    message = "",
-    help = "",
-  }: {
-    message?: string;
-    help?: string;
-  }) {
-    this.help = help;
-    this.message = message;
-  }
-}
 
 /**
  * Represents a video download item with its URL and ongoing status.
@@ -123,21 +65,6 @@ export class VideoDownloadItem {
     return this.status === "error";
   }
 }
-
-type DownloadEventStarted = DownloadEvent<"started", {}>;
-type DownloadEventFinished = DownloadEvent<"finished", {}>;
-type DownloadEventProgress = DownloadEvent<
-  "progress",
-  {
-    progress: number;
-  }
->;
-type DownloadEventError = DownloadEvent<"error", VideoDownloadItemError>;
-type DownloadEvents =
-  | DownloadEventStarted
-  | DownloadEventFinished
-  | DownloadEventProgress
-  | DownloadEventError;
 
 /**
  * Custom hook to manage video downloads.
@@ -197,12 +124,8 @@ export const useDownloadVideo = () => {
         }
       });
 
-      invoke<DownloadInvokeParams>("download", {
-        url: downloadItem.parameters.url,
-        worstAudio: downloadItem.parameters.worstAudio,
-        outputPath: downloadItem.parameters.outputPath,
-        videoHeight: downloadItem.parameters.videoHeight,
-        videoHeightConstraint: downloadItem.parameters.videoHeightConstraint,
+      download<DownloadEvents>({
+        ...downloadItem.parameters,
         onEvent: channel,
       });
 
@@ -214,22 +137,7 @@ export const useDownloadVideo = () => {
 
   return {
     startDownload: (parameters: DownloadParameters) => {
-      if (VideoSettingsSchema.shape.height.parse(parameters.videoHeight)) {
-        throw Error(
-          parameters.videoHeight + " is not a legitimate video height."
-        );
-      }
-
-      if (
-        VideoSettingsSchema.shape.heightConstraint.parse(
-          parameters.videoHeightConstraint
-        )
-      ) {
-        throw Error(
-          parameters.videoHeightConstraint +
-            " is not a legitimate video height constraint."
-        );
-      }
+      SettingsSchema.parse(parameters.settings);
 
       setDownloadItem(
         new VideoDownloadItem({

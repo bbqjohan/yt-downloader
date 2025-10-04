@@ -8,36 +8,33 @@ import {
   Tab,
   Tabs,
 } from "@heroui/react";
-import { OneColumnLayout } from "../layouts/one-column";
+import { OneColumnLayout } from "../../layouts/one-column";
 import { memo, useState } from "react";
 import { Key } from "@react-types/shared";
-import { useDownloadVideo, VideoDownloadItem } from "../hooks/download-video";
 import {
-  useAppStore,
-  useSettingsStore,
-  getStore,
-} from "../store/global-stores";
+  useDownloadVideo,
+  VideoDownloadItem,
+} from "../../hooks/download-video";
+import { useAppStore, getStore } from "../../store/global-stores";
 
 import { useNavigate } from "react-router";
 import { BiSolidCog } from "react-icons/bi";
-import { VideoHeightSelect } from "../components/video-height-select";
-import { VideoHeightConstraintSelect } from "../components/video-height-constraint-select";
-import { VideoOutputPath } from "../components/video-output-path";
+import { VideoHeightSelect } from "../../components/video-height-select";
+import { VideoHeightConstraintSelect } from "../../components/video-height-constraint-select";
+import { VideoOutputPath } from "../../components/video-output-path";
+import * as PageStore from "./store";
 
 export function DownloadPage() {
   const downloadVideo = useDownloadVideo();
   const navigate = useNavigate();
 
   const handleDownload = () => {
-    const settings = getStore((s) => s.settings.getState());
+    const settings = PageStore.useStore.getState();
     const app = getStore((s) => s.app.getState());
 
     downloadVideo.startDownload({
-      url: app.app.url.value,
-      worstAudio: settings.audio.quality.value === "wa",
-      outputPath: settings.general.outputPath.value,
-      videoHeight: settings.video.height.value,
-      videoHeightConstraint: settings.video.heightConstraint.value,
+      item: app.download.toData(),
+      settings: settings.toData(),
     });
   };
 
@@ -76,7 +73,7 @@ interface UrlInputProps {
 }
 
 const UrlInput = memo(({ isDisabled, onDownload }: UrlInputProps) => {
-  const { url } = useAppStore((state) => state.app);
+  const { url } = useAppStore((state) => state.download);
 
   return (
     <div className="text-black flex flex-col gap-4">
@@ -121,7 +118,7 @@ const SettingsSection = memo(() => {
 });
 
 const AudioSettings = () => {
-  const { quality } = useSettingsStore((state) => state.audio);
+  const { quality } = PageStore.useStore((state) => state.audio);
 
   return (
     <div className="flex flex-col gap-4">
@@ -137,7 +134,7 @@ const AudioSettings = () => {
 };
 
 const GeneralSettings = () => {
-  const { outputPath } = useSettingsStore((state) => state.general);
+  const { outputPath } = PageStore.useStore((state) => state.general);
 
   return (
     <div className="flex flex-col gap-4">
@@ -152,7 +149,9 @@ const GeneralSettings = () => {
 };
 
 const VideoSettings = () => {
-  const { height, heightConstraint } = useSettingsStore((state) => state.video);
+  const { height, heightConstraint } = PageStore.useStore(
+    (state) => state.video
+  );
 
   return (
     <div className="flex flex-col gap-4">
