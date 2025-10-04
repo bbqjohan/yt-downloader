@@ -100,11 +100,12 @@ export function mergeSliceWithData<
   return slice;
 }
 
-export interface SingletonStore<TData, TStore> {
+export interface SingletonStore<TData, TStore, TStoreDef> {
   useStore: {
     (): TStore;
     <U>(fn: (state: TStore) => U): U;
   };
+  getStoreDef: () => TStoreDef;
   create: (data?: TData) => void;
   isCreated: () => boolean;
 }

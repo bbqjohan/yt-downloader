@@ -14,12 +14,18 @@ function isCreated() {
   return !!boundStore;
 }
 
-function useStore(): SettingsStore;
-function useStore<U>(fn?: (state: SettingsStore) => U): U;
-function useStore<U>(fn?: (state: SettingsStore) => U): U | SettingsStore {
+function assertStore(
+  boundStore: unknown
+): asserts boundStore is ReturnType<typeof SettingsStoreCreator> {
   if (!boundStore) {
     throw Error("No store");
   }
+}
+
+function useStore(): SettingsStore;
+function useStore<U>(fn?: (state: SettingsStore) => U): U;
+function useStore<U>(fn?: (state: SettingsStore) => U): U | SettingsStore {
+  assertStore(boundStore);
 
   if (typeof fn === "function") {
     return boundStore(fn);
@@ -28,8 +34,17 @@ function useStore<U>(fn?: (state: SettingsStore) => U): U | SettingsStore {
   }
 }
 
-const SettingsPageStore: SingletonStore<Settings, SettingsStore> = {
+const SettingsPageStore: SingletonStore<
+  Settings,
+  SettingsStore,
+  ReturnType<typeof SettingsStoreCreator>
+> = {
   useStore,
+  getStoreDef: () => {
+    assertStore(boundStore);
+
+    return boundStore;
+  },
   create,
   isCreated,
 };

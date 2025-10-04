@@ -110,7 +110,7 @@ const Topbar = () => {
   const navigate = useNavigate();
 
   const applySettings = () => {
-    settingsFile.write(PageStore.useStore().toData());
+    settingsFile.write(PageStore.getStoreDef().getState().toData());
   };
 
   const onPageLeave = () => {
