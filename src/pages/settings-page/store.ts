@@ -1,14 +1,37 @@
 import { Settings } from "../../lib/fs/settings";
-import { SettingsStoreCreator } from "../../store/settings";
+import { SingletonStore } from "../../lib/store";
+import { SettingsStore, SettingsStoreCreator } from "../../store/settings";
 
-export let useStore: ReturnType<typeof SettingsStoreCreator>;
+let boundStore: ReturnType<typeof SettingsStoreCreator> | undefined;
 
-export function Create(data?: Settings) {
-  if (!useStore) {
-    useStore = SettingsStoreCreator(data);
+function create(data?: Settings) {
+  if (!boundStore) {
+    boundStore = SettingsStoreCreator(data);
   }
 }
 
-export function isCreated() {
-  return !!useStore;
+function isCreated() {
+  return !!boundStore;
 }
+
+function useStore(): SettingsStore;
+function useStore<U>(fn?: (state: SettingsStore) => U): U;
+function useStore<U>(fn?: (state: SettingsStore) => U): U | SettingsStore {
+  if (!boundStore) {
+    throw Error("No store");
+  }
+
+  if (typeof fn === "function") {
+    return boundStore(fn);
+  } else {
+    return boundStore();
+  }
+}
+
+const SettingsPageStore: SingletonStore<Settings, SettingsStore> = {
+  useStore,
+  create,
+  isCreated,
+};
+
+export default SettingsPageStore;

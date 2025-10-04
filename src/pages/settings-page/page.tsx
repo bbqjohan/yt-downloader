@@ -26,7 +26,7 @@ import { VideoHeightSelect } from "../../components/video-height-select";
 import { VideoHeightConstraintSelect } from "../../components/video-height-constraint-select";
 import { VideoOutputPath } from "../../components/video-output-path";
 import { SettingsStoreCreator } from "../../store/settings";
-import * as PageStore from "./store";
+import PageStore from "./store";
 
 type PageContext = {
   settingsStore: ReturnType<typeof SettingsStoreCreator>;
@@ -110,7 +110,7 @@ const Topbar = () => {
   const navigate = useNavigate();
 
   const applySettings = () => {
-    settingsFile.write(PageStore.useStore.getState().toData());
+    settingsFile.write(PageStore.useStore().toData());
   };
 
   const onPageLeave = () => {
