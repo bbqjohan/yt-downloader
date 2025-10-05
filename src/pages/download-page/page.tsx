@@ -22,14 +22,14 @@ import { BiSolidCog } from "react-icons/bi";
 import { VideoHeightSelect } from "../../components/video-height-select";
 import { VideoHeightConstraintSelect } from "../../components/video-height-constraint-select";
 import { VideoOutputPath } from "../../components/video-output-path";
-import * as PageStore from "./store";
+import { PageStore } from "./store";
 
 export function DownloadPage() {
   const downloadVideo = useDownloadVideo();
   const navigate = useNavigate();
 
   const handleDownload = () => {
-    const settings = PageStore.useStore.getState();
+    const settings = PageStore.getDef().getState();
     const app = getStore((s) => s.app.getState());
 
     downloadVideo.startDownload({

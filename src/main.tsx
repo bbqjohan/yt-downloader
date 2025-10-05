@@ -7,9 +7,9 @@ import { File as SettingsFile } from "./lib/fs/settings";
 import { createBrowserRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
 import { DefaultSettingsPage } from "./pages/settings-page/page";
-import { Create as DownloadPageStoreCreator } from "./pages/download-page/store";
+import { PageStore as DownloadPageStore } from "./pages/download-page/store";
 import { DownloadPage } from "./pages/download-page/page";
-import SettingsPageStore from "./pages/settings-page/store";
+import { PageStore as SettingsPageStore } from "./pages/settings-page/store";
 
 await SettingsFile.create();
 const settingsFileData = await SettingsFile.read();
@@ -40,7 +40,7 @@ const router = createBrowserRouter([
         index: true,
         Component: DownloadPage,
         loader: async () => {
-          DownloadPageStoreCreator(settingsFileData);
+          DownloadPageStore.init(settingsFileData);
         },
       },
       {
@@ -49,10 +49,10 @@ const router = createBrowserRouter([
         loader: async () => {
           const data = getStore((s) => s.settings.getState().toData());
 
-          if (SettingsPageStore.isCreated()) {
+          if (SettingsPageStore.isInitialized()) {
             SettingsPageStore.useStore().hydrate(data);
           } else {
-            SettingsPageStore.create(data);
+            SettingsPageStore.init(data);
           }
         },
       },

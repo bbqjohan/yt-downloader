@@ -100,12 +100,79 @@ export function mergeSliceWithData<
   return slice;
 }
 
-export interface SingletonStore<TData, TStore, TStoreDef> {
-  useStore: {
-    (): TStore;
-    <U>(fn: (state: TStore) => U): U;
-  };
-  getStoreDef: () => TStoreDef;
-  create: (data?: TData) => void;
-  isCreated: () => boolean;
+export interface SingletonStore<
+  TStore,
+  TStoreCreator extends (...args: any) => TStore
+> {
+  /**
+   * Creates the instance of the store that will be part of the singleton.
+   */
+  init(...args: Parameters<TStoreCreator>): void;
+
+  useStore(): TStore;
+  /**
+   * Recreation of the call signature of zustands `UseBoundStore` interface.
+   *
+   * @param fn Optional. Returns a part of the state. If not provided, returns the entire state.
+   */
+  useStore<U>(fn?: (state: TStore) => U): U;
+
+  /**
+   * Whether the singleton has been initialized.
+   */
+  isInitialized(): boolean;
+
+  /**
+   * Returns the store bound instance.
+   */
+  getDef(): ReturnType<TStoreCreator>;
+}
+
+/**
+ * This class represents a singleton interface for stores that must persist their data during a
+ * session of the applicaton.
+ */
+export class SingletonStoreBase<
+  TStore,
+  TStoreCreator extends (...args: any) => any
+> implements SingletonStore<TStore, TStoreCreator>
+{
+  #boundStore: ReturnType<TStoreCreator> | undefined;
+  #storeCreator: TStoreCreator;
+
+  constructor(storeCreator: TStoreCreator) {
+    this.#storeCreator = storeCreator;
+  }
+
+  assertStore(
+    boundStore: unknown
+  ): asserts boundStore is ReturnType<TStoreCreator> {
+    if (!boundStore) {
+      throw Error("No store");
+    }
+  }
+
+  useStore(): TStore;
+  useStore<U>(fn?: (state: TStore) => U): U;
+  useStore<U>(fn?: (state: TStore) => U): U | TStore {
+    this.assertStore(this.#boundStore);
+
+    return typeof fn === "function" ? this.#boundStore(fn) : this.#boundStore();
+  }
+
+  isInitialized() {
+    return !!this.#boundStore;
+  }
+
+  init(...args: Parameters<TStoreCreator>) {
+    if (!this.isInitialized()) {
+      this.#boundStore = this.#storeCreator(...args);
+    }
+  }
+
+  getDef() {
+    this.assertStore(this.#boundStore);
+
+    return this.#boundStore;
+  }
 }

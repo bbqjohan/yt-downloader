@@ -1,10 +1,7 @@
-import { Settings } from "../../lib/fs/settings";
-import { SettingsStoreCreator } from "../../store/settings";
+import { SingletonStoreBase } from "../../lib/store";
+import { SettingsStore, SettingsStoreCreator } from "../../store/settings";
 
-export let useStore: ReturnType<typeof SettingsStoreCreator>;
-
-export function Create(settings?: Settings) {
-  if (!useStore) {
-    useStore = SettingsStoreCreator(settings);
-  }
-}
+export const PageStore = new SingletonStoreBase<
+  SettingsStore,
+  typeof SettingsStoreCreator
+>(SettingsStoreCreator);
