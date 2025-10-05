@@ -1,8 +1,8 @@
 import "./App.css";
-import { DownloadPage } from "./pages/download-page";
+import { Outlet } from "react-router";
 
 function App() {
-  return <DownloadPage />;
+  return <Outlet />;
 }
 
 export default App;

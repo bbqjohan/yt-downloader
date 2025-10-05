@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result as AnyResult};
 use regex::Regex;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
     io::{BufRead, BufReader, Stdout},
     process::{Command, Stdio},
@@ -202,6 +202,46 @@ impl TryFrom<&str> for VideoHeightConstraint {
     }
 }
 
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct VideoSettings {
+    height: String,
+    height_constraint: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AudioSettings {
+    quality: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GeneralSettings {
+    output_path: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DownloadSettings {
+    video: VideoSettings,
+    audio: AudioSettings,
+    general: GeneralSettings,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DownloadItem {
+    url: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DownloadParameters {
+    item: DownloadItem,
+    settings: DownloadSettings,
+}
+
 /// Downloads an audio only version of the video from the given URL using yt-dlp and sends
 /// progress events back to the frontend via the provided channel.
 ///
@@ -209,14 +249,10 @@ impl TryFrom<&str> for VideoHeightConstraint {
 /// strategy.
 #[tauri::command]
 pub async fn download(
-    url: &str,
-    worst_audio: bool,
-    output_path: &str,
-    video_height: &str,
-    video_height_constraint: &str,
+    parameters: DownloadParameters,
     on_event: Channel<DownloadEvent>,
 ) -> Result<(), ()> {
-    let vh = match VideoHeight::try_from(video_height) {
+    let vh = match VideoHeight::try_from(parameters.settings.video.height.as_str()) {
         Ok(v) => v,
         Err(e) => {
             on_event
@@ -230,24 +266,26 @@ pub async fn download(
         }
     };
 
-    let vhc = match VideoHeightConstraint::try_from(video_height_constraint) {
-        Ok(v) => v,
-        Err(e) => {
-            on_event
-                .send(DownloadEvent::Error {
-                    message: e.to_string(),
-                    help: "".to_string(),
-                })
-                .unwrap();
+    let vhc =
+        match VideoHeightConstraint::try_from(parameters.settings.video.height_constraint.as_str())
+        {
+            Ok(v) => v,
+            Err(e) => {
+                on_event
+                    .send(DownloadEvent::Error {
+                        message: e.to_string(),
+                        help: "".to_string(),
+                    })
+                    .unwrap();
 
-            return Ok(());
-        }
-    };
+                return Ok(());
+            }
+        };
 
     let mut cmd = Command::new("yt-dlp")
         .arg("-f")
         .arg(Download::get_format_arg(
-            &Download::get_audio_format_arg(Some(&worst_audio)),
+            parameters.settings.audio.quality.as_str(),
             &Download::get_video_format_arg(vh, vhc)
         ))
         .arg("--force-overwrites")
@@ -256,8 +294,8 @@ pub async fn download(
         .arg("--progress-delta")
         .arg("1")
         .arg("-o")
-        .arg(format!("{}\\%(title)s.%(ext)s", output_path))
-        .arg(url)
+        .arg(format!("{}\\%(title)s.%(ext)s", parameters.settings.general.output_path.as_str()))
+        .arg(parameters.item.url.as_str())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
