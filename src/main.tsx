@@ -25,6 +25,9 @@ createAllStores({
   },
 });
 
+DownloadPageStore.create(settingsFileData);
+SettingsPageStore.create(settingsFileData);
+
 const rootEl = document.getElementById("root");
 
 if (!rootEl) {
@@ -39,20 +42,15 @@ const router = createBrowserRouter([
       {
         index: true,
         Component: DownloadPage,
-        loader: async () => {
-          DownloadPageStore.init(settingsFileData);
-        },
       },
       {
         path: "settings",
         Component: DefaultSettingsPage,
         loader: async () => {
-          const data = getStore((s) => s.settings.getState().toData());
-
-          if (SettingsPageStore.isInitialized()) {
-            SettingsPageStore.useStore().hydrate(data);
-          } else {
-            SettingsPageStore.init(data);
+          if (SettingsPageStore.isCreated()) {
+            SettingsPageStore.getStoreDef()
+              .getState()
+              .hydrate(getStore((s) => s.settings.getState().toData()));
           }
         },
       },

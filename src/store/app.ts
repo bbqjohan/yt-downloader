@@ -1,7 +1,18 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import { Slice, Store, SliceCreatorFn, CompareFn } from "../lib/store";
+import * as StoreLib from "../lib/store";
 import z from "zod";
+
+type StoreValue<TData> = StoreLib.Value<TData> &
+  StoreLib.ValueError &
+  StoreLib.Update<TData> &
+  StoreLib.Validate;
+
+type StoreSlice<TData> = StoreLib.ToData<TData> &
+  StoreLib.Merge<TData, StoreSlice<TData>> &
+  StoreLib.Hydrate<TData> & {
+    [K in keyof TData]: StoreValue<TData[K]>;
+  };
 
 type DownloadSliceDataSchema = z.infer<typeof DownloadSliceDataSchema>;
 const DownloadSliceDataSchema = z.object({
@@ -18,9 +29,9 @@ export class DownloadSliceData implements DownloadSliceDataSchema {
   }
 }
 
-export type DownloadSlice = Slice<DownloadSliceData, AppStore>;
+export type DownloadSlice = StoreSlice<DownloadSliceData>;
 
-const AppSliceCreator: SliceCreatorFn<
+const DownloadSliceCreator: StoreLib.SliceCreatorFn<
   DownloadSliceData,
   DownloadSlice,
   AppStore
@@ -32,13 +43,11 @@ const AppSliceCreator: SliceCreatorFn<
       setValue: (value) => {
         set((s) => {
           s.download.url.value = value;
-          return s;
         });
       },
       setError: (value) => {
         set((s) => {
           s.download.url.error = value;
-          return s;
         });
       },
       update: (value) => {
@@ -50,7 +59,6 @@ const AppSliceCreator: SliceCreatorFn<
       validate: (value) => {
         return typeof value !== "string" ? "Invalid url" : null;
       },
-      isEqual: () => false,
     },
 
     toData: () => {
@@ -69,12 +77,9 @@ const AppSliceCreator: SliceCreatorFn<
 
     hydrate: (data) => {
       set((s) => {
-        s.download = slice.merge(s.download, data);
-        return s;
+        slice.merge(s.download, data);
       });
     },
-
-    isEqual: () => false,
   };
 
   return slice;
@@ -95,19 +100,20 @@ export class AppStoreData implements AppStoreSchema {
   }
 }
 
-export type AppStore = Store<
-  AppStoreData,
-  {
-    download: DownloadSlice;
-    compare: CompareFn<AppStore>;
-  }
->;
+interface StoreSlices {
+  download: DownloadSlice;
+}
+
+export type AppStore = StoreLib.Hydrate<AppStoreData> &
+  StoreLib.ToData<AppStoreData> &
+  StoreLib.Merge<AppStoreData, AppStore> &
+  StoreSlices;
 
 export function AppStoreCreator(data?: AppStoreData) {
   return create<AppStore>()(
     immer((set, get, store) => {
       const instance: AppStore = {
-        download: AppSliceCreator(data?.download)(set, get, store),
+        download: DownloadSliceCreator(data?.download)(set, get, store),
         toData: () => {
           const state = get();
 
@@ -125,7 +131,6 @@ export function AppStoreCreator(data?: AppStoreData) {
             get().merge(s, data);
           });
         },
-        compare: () => false,
       };
 
       return instance;

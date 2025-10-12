@@ -110,7 +110,7 @@ const Topbar = () => {
   const navigate = useNavigate();
 
   const applySettings = () => {
-    settingsFile.write(PageStore.getDef().getState().toData());
+    settingsFile.write(PageStore.getStoreDef().getState().toData());
   };
 
   const onPageLeave = () => {
@@ -131,13 +131,13 @@ const Topbar = () => {
   };
 
   useEffect(() => {
-    if (settingsFile.promise && openModal) {
+    if (openModal && settingsFile.promise && settingsFile.isWriting) {
       settingsFile.promise.then(() => {
         setOpenModal(false);
         navigate("/");
       });
     }
-  }, [settingsFile.promise, openModal]);
+  }, [openModal, settingsFile.promise, settingsFile.isWriting]);
 
   return (
     <div className="flex col-span-full py-4 border-b-1 border-gray-300 items-center">

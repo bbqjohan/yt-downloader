@@ -29,7 +29,7 @@ export function DownloadPage() {
   const navigate = useNavigate();
 
   const handleDownload = () => {
-    const settings = PageStore.getDef().getState();
+    const settings = PageStore.getStoreDef().getState();
     const app = getStore((s) => s.app.getState());
 
     downloadVideo.startDownload({

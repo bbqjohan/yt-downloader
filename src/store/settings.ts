@@ -7,19 +7,25 @@ import {
   VideoSettings,
   VideoSettingsSchema,
 } from "../lib/fs/settings";
-import {
-  Compare,
-  mergeSliceWithData,
-  Slice,
-  SliceCreatorFn,
-  Store,
-} from "../lib/store";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
+import * as StoreLib from "../lib/store";
 
-type AudioSlice = Slice<AudioSettings, SettingsStore>;
+type StoreValue<TData> = StoreLib.Value<TData> &
+  StoreLib.ValueError &
+  StoreLib.Update<TData> &
+  StoreLib.Validate &
+  StoreLib.isEqual<SettingsStore>;
 
-export const AudioSliceCreator: SliceCreatorFn<
+type StoreSlice<TData> = StoreLib.ToData<TData> &
+  StoreLib.Merge<TData, StoreSlice<TData>> &
+  StoreLib.Hydrate<TData> & {
+    [K in keyof TData]: StoreValue<TData[K]>;
+  } & StoreLib.isEqual<SettingsStore>;
+
+type AudioSlice = StoreSlice<AudioSettings>;
+
+export const AudioSliceCreator: StoreLib.SliceCreatorFn<
   AudioSettings,
   AudioSlice,
   SettingsStore
@@ -75,12 +81,12 @@ export const AudioSliceCreator: SliceCreatorFn<
     },
   };
 
-  return mergeSliceWithData(slice, AudioSettingsSchema, data);
+  return StoreLib.mergeSliceWithData(slice, AudioSettingsSchema, data);
 };
 
-type VideoSlice = Slice<VideoSettings, SettingsStore>;
+type VideoSlice = StoreSlice<VideoSettings>;
 
-export const VideoSliceCreator: SliceCreatorFn<
+export const VideoSliceCreator: StoreLib.SliceCreatorFn<
   VideoSettings,
   VideoSlice,
   SettingsStore
@@ -169,12 +175,12 @@ export const VideoSliceCreator: SliceCreatorFn<
     },
   };
 
-  return mergeSliceWithData(slice, VideoSettingsSchema, data);
+  return StoreLib.mergeSliceWithData(slice, VideoSettingsSchema, data);
 };
 
-type GeneralSlice = Slice<GeneralSettings, SettingsStore>;
+type GeneralSlice = StoreSlice<GeneralSettings>;
 
-export const GeneralSliceCreator: SliceCreatorFn<
+export const GeneralSliceCreator: StoreLib.SliceCreatorFn<
   GeneralSettings,
   GeneralSlice,
   SettingsStore
@@ -230,17 +236,20 @@ export const GeneralSliceCreator: SliceCreatorFn<
     },
   };
 
-  return mergeSliceWithData(slice, GeneralSettingsSchema, data);
+  return StoreLib.mergeSliceWithData(slice, GeneralSettingsSchema, data);
 };
 
-export type SettingsStore = Store<
-  Settings,
-  {
-    audio: AudioSlice;
-    video: VideoSlice;
-    general: GeneralSlice;
-  } & Compare<SettingsStore>
->;
+interface StoreSlices {
+  audio: AudioSlice;
+  video: VideoSlice;
+  general: GeneralSlice;
+}
+
+export type SettingsStore = StoreLib.Hydrate<Settings> &
+  StoreLib.ToData<Settings> &
+  StoreLib.Merge<Settings, SettingsStore> &
+  StoreLib.isEqual<SettingsStore> &
+  StoreSlices;
 
 export function SettingsStoreCreator(data?: Settings) {
   return create<SettingsStore>()(
