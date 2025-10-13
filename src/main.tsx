@@ -10,8 +10,6 @@ import { DefaultSettingsPage } from "./pages/settings-page/page";
 import { PageStore as DownloadPageStore } from "./pages/download-page/store";
 import { DownloadPage } from "./pages/download-page/page";
 import { PageStore as SettingsPageStore } from "./pages/settings-page/store";
-import { ZodError } from "zod";
-import { Result } from "./lib/try-catch";
 
 // --------------------------------------------------
 // Settings file initialization.
@@ -19,34 +17,7 @@ import { Result } from "./lib/try-catch";
 
 await SettingsFile.create();
 
-async function InitSettingsFile() {
-  // let settingsFileData: Settings;
-
-  const readSettingsFileResult = await SettingsFile.read();
-  console.log(readSettingsFileResult);
-
-  if (readSettingsFileResult.error) {
-    // If the file cannot be read, fails to parse from JSON, or
-    // the data doesn't follow the schema, create a new file
-    // with default values.
-    // settingsFileData = new Settings();
-    // SettingsFile.write(settingsFileData);
-  } else {
-    // settingsFileData = readSettingsFileResult.data;
-  }
-
-  if (readSettingsFileResult.error instanceof SyntaxError) {
-    console.log("SYNTAX ERROR");
-  } else if (readSettingsFileResult.error instanceof ZodError) {
-    console.log("ZOD ERROR");
-  } else if (readSettingsFileResult.error instanceof Error) {
-    console.log("Could not read");
-  }
-
-  return readSettingsFileResult;
-}
-
-let settingsFileResult: Result<Settings> | undefined = await InitSettingsFile();
+let settingsFileResult = await SettingsFile.read();
 
 // --------------------------------------------------
 // Frontend stores initialization.
@@ -60,6 +31,9 @@ createAllStores({
     download: {
       url: "",
     },
+  },
+  boot: {
+    readSettings: settingsFileResult.error,
   },
 });
 

@@ -3,18 +3,13 @@ import {
   ButtonProps,
   Divider,
   Input,
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
   Radio,
   RadioGroup,
   Tab,
   Tabs,
 } from "@heroui/react";
 import { OneColumnLayout } from "../../layouts/one-column";
-import { memo, useEffect, useState } from "react";
+import { memo, useState } from "react";
 import { Key } from "@react-types/shared";
 import {
   useDownloadVideo,
@@ -22,14 +17,13 @@ import {
 } from "../../hooks/download-video";
 import { useAppStore, getStore } from "../../store/global-stores";
 
-import { useLoaderData, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { BiSolidCog } from "react-icons/bi";
 import { VideoHeightSelect } from "../../components/video-height-select";
 import { VideoHeightConstraintSelect } from "../../components/video-height-constraint-select";
 import { VideoOutputPath } from "../../components/video-output-path";
 import { PageStore } from "./store";
-import { File, Settings } from "../../lib/fs/settings";
-import { Result } from "../../lib/try-catch";
+import { SettingsReadErrorModal } from "./components/settings-read-error-modal";
 
 export function DownloadPage() {
   const downloadVideo = useDownloadVideo();
@@ -47,7 +41,7 @@ export function DownloadPage() {
 
   return (
     <OneColumnLayout>
-      <SettingsErrorModal />
+      <SettingsReadErrorModal />
       <div className="flex py-4 border-gray-300 items-center justify-end">
         <Button
           isIconOnly
@@ -74,94 +68,6 @@ export function DownloadPage() {
     </OneColumnLayout>
   );
 }
-
-const SettingsErrorModal = () => {
-  // Modal stuff
-  const result = useLoaderData<Result<Settings>>();
-  const [isOpen, setIsOpen] = useState(!!result.error);
-  const [isFixed, setIsFixed] = useState(false);
-  const [couldNotFix, setCouldNotFix] = useState(false);
-  const [isFixing, setIsFixing] = useState(false);
-  const onClose = () => setIsOpen(false);
-  const onReplace = async () => {
-    setIsFixing(true);
-  };
-
-  useEffect(() => {
-    let isMounted = true;
-
-    if (isFixing) {
-      setTimeout(() => {
-        File.write(new Settings())
-          .then(() => {
-            if (isMounted) {
-              setIsFixed(true);
-            }
-          })
-          .catch(() => {
-            if (isMounted) {
-              setCouldNotFix(true);
-            }
-          });
-      }, 1000);
-    }
-
-    return () => {
-      isMounted = false;
-    };
-  }, [isFixing]);
-
-  return (
-    <Modal
-      isDismissable={false}
-      isKeyboardDismissDisabled={false}
-      isOpen={isOpen}
-      onClose={onClose}
-    >
-      <ModalContent>
-        <>
-          <ModalHeader className="flex flex-col gap-1">
-            Damaged settings!
-          </ModalHeader>
-          <ModalBody>
-            {couldNotFix && (
-              <div>
-                <div>Problem could not be resolved.</div>
-                <Button color="danger" onPress={() => setIsOpen(false)}>
-                  {"OK :("}
-                </Button>
-              </div>
-            )}
-            {isFixed && (
-              <div>
-                <div>Problem fixed!</div>
-                <Button color="primary" onPress={() => setIsOpen(false)}>
-                  OK :D
-                </Button>
-              </div>
-            )}
-            {!isFixing && (
-              <p>
-                Something went wrong when reading the settings file. We can try
-                replacing the file for you, but you will loose any settings that
-                you've specified.
-              </p>
-            )}
-            {isFixing && <div>Fixing problem...</div>}
-          </ModalBody>
-          <ModalFooter>
-            <Button color="danger" variant="light" onPress={onClose}>
-              Ignore
-            </Button>
-            <Button color="primary" onPress={onReplace}>
-              Replace settings
-            </Button>
-          </ModalFooter>
-        </>
-      </ModalContent>
-    </Modal>
-  );
-};
 
 interface UrlInputProps {
   isDisabled: boolean;

@@ -5,8 +5,9 @@ import {
   readTextFile,
   writeTextFile,
 } from "@tauri-apps/plugin-fs";
-import z from "zod";
+import z, { ZodError } from "zod";
 import { err, ok, Result, tryCatch, tryCatchAsync } from "../try-catch";
+import { FileError } from "./error";
 
 const DEFAULT_DOWNLOAD_DIR = await path.downloadDir();
 
@@ -55,12 +56,15 @@ export class File {
    * - `ZodError` if the contents doesn't follow the {@link SettingsSchema}.
    * - `SyntaxError` if the file has faulty JSON syntax.
    */
-  static async read(): Promise<Result<Settings>> {
+  static async read(): Promise<Result<Settings, FileError>> {
     const file = await tryCatchAsync(
       readTextFile("data/settings.json", {
         baseDir: BaseDirectory.AppData,
       }),
-      Error("Could not read settings file")
+      new FileError({
+        message: "Could not read settings file",
+        code: "could_not_read",
+      })
     );
 
     if (file.error) {
@@ -70,7 +74,28 @@ export class File {
     const parsed = tryCatch(() => SettingsSchema.parse(JSON.parse(file.data)));
 
     if (parsed.error) {
-      return parsed;
+      if (parsed.error instanceof ZodError) {
+        return err(
+          new FileError({
+            message: parsed.error.message,
+            code: "invalid_value",
+          })
+        );
+      } else if (parsed.error instanceof SyntaxError) {
+        return err(
+          new FileError({
+            message: parsed.error.message,
+            code: "invalid_json",
+          })
+        );
+      } else {
+        return err(
+          new FileError({
+            message: parsed.error.message,
+            code: "not_sure",
+          })
+        );
+      }
     }
 
     return ok(new Settings(parsed.data));
