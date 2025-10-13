@@ -3,21 +3,59 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { HeroUIProvider } from "@heroui/react";
 import { createAllStores, getStore } from "./store/global-stores";
-import { File as SettingsFile } from "./lib/fs/settings";
+import { Settings, File as SettingsFile } from "./lib/fs/settings";
 import { createBrowserRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
 import { DefaultSettingsPage } from "./pages/settings-page/page";
 import { PageStore as DownloadPageStore } from "./pages/download-page/store";
 import { DownloadPage } from "./pages/download-page/page";
 import { PageStore as SettingsPageStore } from "./pages/settings-page/store";
+import { ZodError } from "zod";
+import { Result } from "./lib/try-catch";
+
+// --------------------------------------------------
+// Settings file initialization.
+// --------------------------------------------------
 
 await SettingsFile.create();
-const settingsFileData = await SettingsFile.read();
+
+async function InitSettingsFile() {
+  // let settingsFileData: Settings;
+
+  const readSettingsFileResult = await SettingsFile.read();
+  console.log(readSettingsFileResult);
+
+  if (readSettingsFileResult.error) {
+    // If the file cannot be read, fails to parse from JSON, or
+    // the data doesn't follow the schema, create a new file
+    // with default values.
+    // settingsFileData = new Settings();
+    // SettingsFile.write(settingsFileData);
+  } else {
+    // settingsFileData = readSettingsFileResult.data;
+  }
+
+  if (readSettingsFileResult.error instanceof SyntaxError) {
+    console.log("SYNTAX ERROR");
+  } else if (readSettingsFileResult.error instanceof ZodError) {
+    console.log("ZOD ERROR");
+  } else if (readSettingsFileResult.error instanceof Error) {
+    console.log("Could not read");
+  }
+
+  return readSettingsFileResult;
+}
+
+let settingsFileResult: Result<Settings> | undefined = await InitSettingsFile();
+
+// --------------------------------------------------
+// Frontend stores initialization.
+// --------------------------------------------------
+
+const storeSettingsData = settingsFileResult.data ?? new Settings();
 
 createAllStores({
-  settings: {
-    ...settingsFileData,
-  },
+  settings: storeSettingsData,
   app: {
     download: {
       url: "",
@@ -25,14 +63,12 @@ createAllStores({
   },
 });
 
-DownloadPageStore.create(settingsFileData);
-SettingsPageStore.create(settingsFileData);
+DownloadPageStore.create(storeSettingsData);
+SettingsPageStore.create(storeSettingsData);
 
-const rootEl = document.getElementById("root");
-
-if (!rootEl) {
-  throw Error("Cannot find root element.");
-}
+// --------------------------------------------------
+// Router initialization.
+// --------------------------------------------------
 
 const router = createBrowserRouter([
   {
@@ -57,6 +93,16 @@ const router = createBrowserRouter([
     ],
   },
 ]);
+
+// --------------------------------------------------
+// Markup initialization.
+// --------------------------------------------------
+
+const rootEl = document.getElementById("root");
+
+if (!rootEl) {
+  throw Error("Cannot find root element.");
+}
 
 ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>

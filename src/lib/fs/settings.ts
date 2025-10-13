@@ -6,6 +6,7 @@ import {
   writeTextFile,
 } from "@tauri-apps/plugin-fs";
 import z from "zod";
+import { err, ok, Result, tryCatch, tryCatchAsync } from "../try-catch";
 
 const DEFAULT_DOWNLOAD_DIR = await path.downloadDir();
 
@@ -46,25 +47,33 @@ export class File {
   }
 
   /**
-   * Attemps to read the settings file. Throws on failure.
+   * Attempts to read the settings file. It validates that the contents of the file follows the
+   * {@link SettingsSchema}.
    *
-   * @returns The settings file, on a successful read.
+   * @returns Result includes a {@link Settings} object, or an error for the following reasons:
+   * - `Error` if the file couldn't be read.
+   * - `ZodError` if the contents doesn't follow the {@link SettingsSchema}.
+   * - `SyntaxError` if the file has faulty JSON syntax.
    */
-  static async read(): Promise<SettingsSchema> {
-    let result: SettingsSchema;
-
-    try {
-      const file = await readTextFile("data/settings.json", {
+  static async read(): Promise<Result<Settings>> {
+    const file = await tryCatchAsync(
+      readTextFile("data/settings.json", {
         baseDir: BaseDirectory.AppData,
-      });
+      }),
+      Error("Could not read settings file")
+    );
 
-      result = SettingsSchema.parse(JSON.parse(file));
-    } catch (e) {
-      console.log(e);
-      throw e;
+    if (file.error) {
+      return err(file.error);
     }
 
-    return result;
+    const parsed = tryCatch(() => SettingsSchema.parse(JSON.parse(file.data)));
+
+    if (parsed.error) {
+      return parsed;
+    }
+
+    return ok(new Settings(parsed.data));
   }
 
   /**
