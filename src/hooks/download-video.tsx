@@ -139,6 +139,13 @@ export const useDownloadVideo = () => {
     startDownload: (parameters: DownloadParameters) => {
       SettingsSchema.parse(parameters.settings);
 
+      if (parameters.settings.audio.quality === "") {
+        throw {
+          message: "No audio quality was set",
+          help: "Please update the audio settings for the download.",
+        };
+      }
+
       setDownloadItem(
         new VideoDownloadItem({
           parameters,

@@ -9,7 +9,11 @@ import z, { ZodError } from "zod";
 import { err, ok, Result, tryCatch, tryCatchAsync } from "../try-catch";
 import { FileError } from "./error";
 
-const DEFAULT_DOWNLOAD_DIR = await path.downloadDir();
+let DEFAULT_DOWNLOAD_DIR: string;
+
+export async function SET_DEFAULT_CONFIG() {
+  DEFAULT_DOWNLOAD_DIR = await path.downloadDir();
+}
 
 /**
  * Represents the settings file on the user's machine.

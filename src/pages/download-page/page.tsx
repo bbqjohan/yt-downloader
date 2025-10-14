@@ -28,15 +28,28 @@ import { SettingsReadErrorModal } from "./components/settings-read-error-modal";
 export function DownloadPage() {
   const downloadVideo = useDownloadVideo();
   const navigate = useNavigate();
+  const [downloadError, setDownloadError] = useState<
+    | {
+        message: string;
+        help: string;
+      }
+    | undefined
+  >();
 
   const handleDownload = () => {
     const settings = PageStore.getStoreDef().getState();
     const app = getStore((s) => s.app.getState());
 
-    downloadVideo.startDownload({
-      item: app.download.toData(),
-      settings: settings.toData(),
-    });
+    setDownloadError(undefined);
+
+    try {
+      downloadVideo.startDownload({
+        item: app.download.toData(),
+        settings: settings.toData(),
+      });
+    } catch (e: unknown) {
+      setDownloadError(e as typeof downloadError);
+    }
   };
 
   return (
@@ -61,7 +74,9 @@ export function DownloadPage() {
           isDisabled={downloadVideo.downloadItem?.isStarted || false}
         />
         <DownloadProgress item={downloadVideo.downloadItem} />
-        <DownloadError item={downloadVideo.downloadItem} />
+        <DownloadError
+          item={downloadVideo.downloadItem?.error || downloadError}
+        />
         <Divider />
         <SettingsSection />
       </div>
@@ -186,11 +201,11 @@ const DownloadProgress = memo(
   }
 );
 
-const DownloadError = ({ item }: { item: VideoDownloadItem | null }) => {
-  return item && item.hasError ? (
+const DownloadError = ({ item }: { item?: VideoDownloadItem["error"] }) => {
+  return item ? (
     <div className="bg-red-200 rounded-lg text-red-900 px-3 py-2 flex flex-col gap-4">
-      <div>{`Error occurred: ${item.error.message}`}</div>
-      {item.error.help && <div>{item.error.help}</div>}
+      <div>{`Error occurred: ${item.message}`}</div>
+      {item.help && <div>{item.help}</div>}
     </div>
   ) : undefined;
 };
